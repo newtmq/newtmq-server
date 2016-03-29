@@ -1,3 +1,3 @@
-noinst_LIBRARIES = liblib_stomp.a
-liblib_stomp_a_CFLAGS = -I../ -I../lib $(CFLAGS)
-liblib_stomp_a_SOURCES = stomp.c stomp.h
+noinst_LIBRARIES = lib_kazusa.a
+lib_kazusa_a_CFLAGS = -I../ -I../lib $(CFLAGS)
+lib_kazusa_a_SOURCES = stomp.c stomp.h optparse.c optparse.h
