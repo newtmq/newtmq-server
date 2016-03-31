@@ -1,0 +1,17 @@
+#include "unit/unit.h"
+
+#define ADD_TESTS(statement) ret = statement(suite); if(ret != CUE_SUCCESS) return ret;
+
+int main(int argc, char **argv) {
+  CU_pSuite suite;
+  int ret;
+
+  CU_initialize_registry();
+
+  ADD_TESTS(test_optparse);
+
+  CU_basic_run_tests();
+  CU_cleanup_registry();
+
+  return 0;
+}

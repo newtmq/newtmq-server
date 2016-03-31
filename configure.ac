@@ -5,7 +5,7 @@ AC_PREREQ([2.68])
 AC_INIT([project], [0.0.1], [user.localhost2000@gmail.com])
 AC_CONFIG_SRCDIR([src/kazusad.c])
 AC_CONFIG_HEADERS([config.h])
-AM_INIT_AUTOMAKE
+AM_INIT_AUTOMAKE([subdir-objects])
 
 # Checks for programs.
 AC_PROG_CC
@@ -22,5 +22,6 @@ AC_PROG_RANLIB
 # Checks for library functions.
 
 AC_OUTPUT(Makefile \
+          src/Makefile \
           src/lib/Makefile \
-          src/Makefile)
+          tests/Makefile)

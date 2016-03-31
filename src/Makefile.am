@@ -1,11 +1,11 @@
 SUBDIRS = lib
 
-bin_PROGRAMS = program
+bin_PROGRAMS = kazusad
 
-program_LDFLAGS = -L./lib 
-program_LDADD = -l_kazusa
+kazusad_LDFLAGS = -L./lib
+kazusad_LDADD = -l_kazusa
 
-program_CFLAGS =  -I ./lib 
+kazusad_CFLAGS =  -I ./lib
 
-program_DEPENDENCIES = ./lib/lib_kazusa.a
-program_SOURCES = kazusad.c
+kazusad_DEPENDENCIES = ./lib/lib_kazusa.a
+kazusad_SOURCES = kazusad.c
