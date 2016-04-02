@@ -1,3 +1,3 @@
 noinst_LIBRARIES = lib_kazusa.a
-lib_kazusa_a_CFLAGS = -I../ -I../lib $(CFLAGS)
-lib_kazusa_a_SOURCES = stomp.c stomp.h optparse.c optparse.h
+lib_kazusa_a_CFLAGS  = -I../include $(CFLAGS)
+lib_kazusa_a_SOURCES = stomp.c optparse.c config.c

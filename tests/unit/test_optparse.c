@@ -22,7 +22,7 @@ static void test_set_nothing(void) {
 }
 
 int test_optparse(CU_pSuite suite) {
-  suite = CU_add_suite("Tmp01", NULL, NULL);
+  suite = CU_add_suite("OptionParser", NULL, NULL);
   if(suite == NULL) {
     return CU_ERROR;
   }

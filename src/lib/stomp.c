@@ -1,2 +1,2 @@
 #include <stdio.h>
-#include "stomp.h"
+#include <kazusa/stomp.h>

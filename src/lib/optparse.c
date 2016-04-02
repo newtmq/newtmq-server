@@ -1,5 +1,4 @@
-#include <argp.h>
-#include "optparse.h"
+#include <kazusa/optparse.h>
 
 static struct argp_option options[] = {
   {"config", 'c', "config_path", 0, "filepath of configuration for kazusad"},

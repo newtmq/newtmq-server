@@ -1,5 +1,5 @@
-#include "lib/stomp.h"
-#include "lib/optparse.h"
+#include <kazusa/stomp.h>
+#include <kazusa/optparse.h>
 
 int main(int argc, char **argv) {
   struct cmd_args args;

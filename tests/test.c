@@ -9,6 +9,7 @@ int main(int argc, char **argv) {
   CU_initialize_registry();
 
   ADD_TESTS(test_optparse);
+  ADD_TESTS(test_config);
 
   CU_basic_run_tests();
   CU_cleanup_registry();
