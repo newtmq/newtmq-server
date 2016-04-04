@@ -4,6 +4,8 @@
 #include <CUnit/CUnit.h>
 #include <kazusa/optparse.h>
 #include <kazusa/config.h>
+#include <kazusa/stomp.h>
+#include <kazusa/list.h>
 
 #include <errno.h>
 #include <stdio.h>

@@ -10,6 +10,7 @@ int main(int argc, char **argv) {
 
   ADD_TESTS(test_optparse);
   ADD_TESTS(test_config);
+  ADD_TESTS(test_stomp);
 
   CU_basic_run_tests();
   CU_cleanup_registry();
