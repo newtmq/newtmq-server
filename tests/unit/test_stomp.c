@@ -38,7 +38,7 @@ static void test_initialize(void) {
   CU_ASSERT(GET_STATUS(frame, STATUS_IN_BUCKET));
 }
 
-static void test_management(void) {
+static void test_bucket(void) {
   struct list_head *e;
   int frame_count = 0;
 
@@ -46,6 +46,29 @@ static void test_management(void) {
     frame_count++;
   }
   CU_ASSERT(frame_count == 1);
+}
+
+static void test_frame(void) {
+  frame_t *frame;
+
+  list_for_each_entry(frame, &stomp_frame_bucket.h_frame, l_bucket) {
+    struct list_head *e;
+    int frame_count;
+
+    /* check attrs in target frame */
+    frame_count = 0;
+    list_for_each(e, &frame->h_attrs) {
+      frame_count++;
+    }
+    CU_ASSERT(frame_count == 3);
+
+    /* check data lines in target frame */
+    frame_count = 0;
+    list_for_each(e, &frame->h_data) {
+      frame_count++;
+    }
+    CU_ASSERT(frame_count == 2);
+  }
 }
 
 static void test_cleanup(void) {
@@ -66,7 +89,8 @@ int test_stomp(CU_pSuite suite) {
   }
 
   CU_add_test(suite, "start_connection and create a frame", test_initialize);
-  CU_add_test(suite, "check management data-structure", test_management);
+  CU_add_test(suite, "check bucket", test_bucket);
+  CU_add_test(suite, "check frame in bucket", test_frame);
   CU_add_test(suite, "check cleanup processing", test_cleanup);
 
   return CU_SUCCESS;

@@ -16,8 +16,8 @@ static frame_t *alloc_frame(int sock) {
   memset(ret->name, 0, FNAME_LEN);
 
   INIT_LIST_HEAD(&ret->h_attrs);
+  INIT_LIST_HEAD(&ret->h_data);
 
-  ret->body = NULL;
   ret->sock = sock;
   ret->status = STATUS_BORN;
 
@@ -25,10 +25,13 @@ static frame_t *alloc_frame(int sock) {
 }
 
 static void free_frame(frame_t *frame) {
-  frame_attr_t *attr;
+  linedata_t *data;
 
-  list_for_each_entry(attr, &frame->h_attrs, l_frame) {
-    free(attr);
+  list_for_each_entry(data, &frame->h_attrs, l_frame) {
+    free(data);
+  }
+  list_for_each_entry(data, &frame->h_data, l_frame) {
+    free(data);
   }
   list_del(&frame->l_bucket);
 
@@ -47,23 +50,23 @@ static void frame_setname(char *data, int len, frame_t *frame) {
   SET_STATUS(frame, STATUS_INPUT_HEADER);
 }
 
-static int frame_setattr(char *data, int len, frame_t *frame) {
-  frame_attr_t *attr;
+static int frame_setdata(char *data, int len, struct list_head *head) {
+  linedata_t *attr;
   int attrlen = len;
 
-  if(attrlen > ATTR_LEN) {
-    attrlen = ATTR_LEN;
+  if(attrlen > LD_MAX) {
+    attrlen = LD_MAX;
   }
 
-  attr = (frame_attr_t *)malloc(sizeof(frame_attr_t));
+  attr = (linedata_t *)malloc(sizeof(linedata_t));
   if(attr == NULL) {
-    printf("[warning] failed to allocate frame_attr_t\n");
+    printf("[warning] failed to allocate linedata_t\n");
     return RET_ERROR;
   }
-  memset(attr->data, 0, ATTR_LEN);
+  memset(attr->data, 0, LD_MAX);
   memcpy(attr->data, data, len);
 
-  list_add_tail(&attr->l_frame, &frame->h_attrs);
+  list_add_tail(&attr->l_frame, head);
 
   return RET_SUCCESS;
 }
@@ -98,7 +101,9 @@ static void frame_creating(char *recv_data, int len, frame_t *frame) {
     if(GET_STATUS(frame, STATUS_BORN)) {
       frame_setname(line, attrlen, frame);
     } else if(GET_STATUS(frame, STATUS_INPUT_HEADER)) {
-      frame_setattr(line, attrlen, frame);
+      frame_setdata(line, attrlen, &frame->h_attrs);
+    } else if(GET_STATUS(frame, STATUS_INPUT_BODY)) {
+      frame_setdata(line, attrlen, &frame->h_data);
     }
   }
 }

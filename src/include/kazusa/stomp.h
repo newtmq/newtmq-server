@@ -8,7 +8,7 @@
 #include <pthread.h>
 
 #define FNAME_LEN 64
-#define ATTR_LEN 512
+#define LD_MAX 256
 
 #define STATUS_BORN         (1 << 0)
 #define STATUS_INPUT_HEADER (1 << 1)
@@ -27,16 +27,15 @@ typedef struct frame_t {
   int sock;
   unsigned int status;
   struct list_head h_attrs;
-  char *body;
-  unsigned int body_len;
+  struct list_head h_data;
   struct list_head l_bucket;
 } frame_t;
 
 /* This describes a Frame attribute */
-typedef struct frame_attr_t {
-  char data[ATTR_LEN];
+typedef struct linedata_t {
+  char data[LD_MAX];
   struct list_head l_frame;
-} frame_attr_t;
+} linedata_t;
 
 int stomp_init_bucket();
 int stomp_cleanup();
