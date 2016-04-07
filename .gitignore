@@ -20,3 +20,4 @@ src/kazusad
 tests/kazusa_test
 stamp-h1
 .dirstamp
+*.conf

@@ -10,14 +10,15 @@
 #define FNAME_LEN 64
 #define ATTR_LEN 512
 
-#define STATUS_INIT       (1 << 0)
-#define STATUS_PROCESSING (1 << 1)
-#define STATUS_IN_BUCKET  (1 << 2)
-#define STATUS_IN_QUEUE   (1 << 3)
+#define STATUS_BORN         (1 << 0)
+#define STATUS_INPUT_HEADER (1 << 1)
+#define STATUS_INPUT_BODY   (1 << 2)
+#define STATUS_IN_BUCKET    (1 << 3)
+#define STATUS_IN_QUEUE     (1 << 4)
 
 typedef struct frame_bucket_t {
   pthread_mutex_t mutex;
-  struct list_head l_frame_h;
+  struct list_head h_frame;
 } frame_bucket_t;
 
 /* This describes STOMP Frame*/
@@ -25,7 +26,7 @@ typedef struct frame_t {
   char name[FNAME_LEN];
   int sock;
   unsigned int status;
-  struct list_head l_attrs_h;
+  struct list_head h_attrs;
   char *body;
   unsigned int body_len;
   struct list_head l_bucket;
@@ -37,11 +38,9 @@ typedef struct frame_attr_t {
   struct list_head l_frame;
 } frame_attr_t;
 
-
 int stomp_init_bucket();
 int stomp_cleanup();
-int stomp_recv_data(char *, int, void *);
-void *stomp_init_connection();
+int stomp_recv_data(char *, int, int, void **);
 
 extern frame_bucket_t stomp_frame_bucket;
 

@@ -4,7 +4,7 @@
 /* This object is accessed globally */
 frame_bucket_t stomp_frame_bucket;
 
-static frame_t *alloc_frame() {
+static frame_t *alloc_frame(int sock) {
   frame_t *ret;
 
   ret = (frame_t *)malloc(sizeof(frame_t));
@@ -13,9 +13,13 @@ static frame_t *alloc_frame() {
   }
 
   /* Initialize frame_t object */
-  INIT_LIST_HEAD(&ret->l_attrs_h);
+  memset(ret->name, 0, FNAME_LEN);
+
+  INIT_LIST_HEAD(&ret->h_attrs);
+
   ret->body = NULL;
-  ret->status = STATUS_INIT;
+  ret->sock = sock;
+  ret->status = STATUS_BORN;
 
   return ret;
 }
@@ -23,7 +27,7 @@ static frame_t *alloc_frame() {
 static void free_frame(frame_t *frame) {
   frame_attr_t *attr;
 
-  list_for_each_entry(attr, &frame->l_attrs_h, l_frame) {
+  list_for_each_entry(attr, &frame->h_attrs, l_frame) {
     free(attr);
   }
   list_del(&frame->l_bucket);
@@ -31,64 +35,109 @@ static void free_frame(frame_t *frame) {
   free(frame);
 }
 
+static void frame_setname(char *data, int len, frame_t *frame) {
+  int namelen = len;
+
+  if(namelen > FNAME_LEN) {
+    namelen = FNAME_LEN;
+  }
+  memcpy(frame->name, data, len);
+
+  CLR_STATUS(frame);
+  SET_STATUS(frame, STATUS_INPUT_HEADER);
+}
+
+static int frame_setattr(char *data, int len, frame_t *frame) {
+  frame_attr_t *attr;
+  int attrlen = len;
+
+  if(attrlen > ATTR_LEN) {
+    attrlen = ATTR_LEN;
+  }
+
+  attr = (frame_attr_t *)malloc(sizeof(frame_attr_t));
+  if(attr == NULL) {
+    printf("[warning] failed to allocate frame_attr_t\n");
+    return RET_ERROR;
+  }
+  memset(attr->data, 0, ATTR_LEN);
+  memcpy(attr->data, data, len);
+
+  list_add_tail(&attr->l_frame, &frame->h_attrs);
+
+  return RET_SUCCESS;
+}
+
 int stomp_cleanup() {
   frame_t *frame, *h;
 
   pthread_mutex_lock(&stomp_frame_bucket.mutex);
-
-  list_for_each_entry_safe(frame, h, &stomp_frame_bucket.l_frame_h, l_bucket) {
-    free_frame(frame);
+  { /* thread safe */
+    list_for_each_entry_safe(frame, h, &stomp_frame_bucket.h_frame, l_bucket) {
+      free_frame(frame);
+    }
   }
-
   pthread_mutex_unlock(&stomp_frame_bucket.mutex);
 
   return RET_SUCCESS;
 }
 
 int stomp_init_bucket() {
-  INIT_LIST_HEAD(&stomp_frame_bucket.l_frame_h);
+  INIT_LIST_HEAD(&stomp_frame_bucket.h_frame);
   pthread_mutex_init(&stomp_frame_bucket.mutex, NULL);
 
   return RET_SUCCESS;
 }
 
-void *stomp_init_connection(int sock) {
-  frame_t *frame = alloc_frame();
-  if(frame == NULL) {
-    printf("[warning] failed to allocate frame_t\n");
-    return RET_ERROR;
-  }
-
-  frame->sock = sock;
-
-  pthread_mutex_lock(&stomp_frame_bucket.mutex);
-  list_add_tail(&frame->l_bucket, &stomp_frame_bucket.l_frame_h);
-  pthread_mutex_unlock(&stomp_frame_bucket.mutex);
-
-  return (void *)frame;
-}
-
-int stomp_recv_data(char *recv_data, int len, void *data) {
+static void frame_creating(char *recv_data, int len, frame_t *frame) {
   char *line, *pointer;
-  char *curr = recv_data;
-  frame_t *frame = (frame_t *)data;
 
   for(pointer = recv_data; line = strtok(pointer, "\n"); pointer += strlen(line) + 1) {
     int attrlen = strlen(line);
-    frame_attr_t *attr;
 
-    if(attrlen > ATTR_LEN) {
-      attrlen = ATTR_LEN;
+    if(GET_STATUS(frame, STATUS_BORN)) {
+      frame_setname(line, attrlen, frame);
+    } else if(GET_STATUS(frame, STATUS_INPUT_HEADER)) {
+      frame_setattr(line, attrlen, frame);
     }
-
-    attr = (frame_attr_t *)malloc(sizeof(frame_attr_t));
-    if(attr == NULL) {
-      printf("[warning] failed to allocate frame_attr_t\n");
-      break;
-    }
-    memset(attr->data, 0, ATTR_LEN);
-    memcpy(attr->data, recv_data, attrlen);
-
-    list_add_tail(&attr->l_frame, &frame->l_attrs_h);
   }
+}
+
+static void frame_create_finish(frame_t *frame) {
+  // last processing for current frame_t object
+  CLR_STATUS(frame);
+  SET_STATUS(frame, STATUS_IN_BUCKET);
+
+  pthread_mutex_lock(&stomp_frame_bucket.mutex);
+  { /* thread safe */
+    list_add_tail(&frame->l_bucket, &stomp_frame_bucket.h_frame);
+  }
+  pthread_mutex_unlock(&stomp_frame_bucket.mutex);
+}
+
+int stomp_recv_data(char *recv_data, int len, int sock, void **cache) {
+  frame_t *frame = (frame_t *)*cache;
+
+  if(frame == NULL) {
+    frame = alloc_frame(sock);
+    if(frame == NULL) {
+      perror("[stomp_recv_data] failed to allocate memory");
+      return RET_ERROR;
+    }
+
+    /* set a frame to take over this data */
+    *cache = frame;
+  }
+
+  if(len == 0) {
+    // the case when use send '^@' which means EOL.
+    frame_create_finish(frame);
+  } else if(len == 1 && *recv_data == '\n') {
+    CLR_STATUS(frame);
+    SET_STATUS(frame, STATUS_INPUT_BODY);
+  } else {
+    frame_creating(recv_data, len, frame);
+  }
+
+  return RET_SUCCESS;
 }

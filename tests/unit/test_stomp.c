@@ -5,40 +5,55 @@
 #include <stdio.h>
 
 #define STDOUT 1
+#define BUFLEN 64
 
-static void test_basic_feature(void) {
-  void *state_data;
-  char recv_data[10] = "hogefuga\n\0";
-  int frame_count;
-  frame_t *frame;
+static void test_initialize(void) {
+  char *inputs[] = { "CONNECT\n", \
+                     "accept-version:1.2\n", \
+                     "login:guest\n", \
+                     "passcode:guest\n", \
+                     "\n", \
+                     "hogefuga\n", \
+                     "foobar\n", \
+                     "\0", \
+                     NULL };
+  frame_t *frame = NULL;
   struct list_head *e;
 
   CU_ASSERT(stomp_init_bucket() == RET_SUCCESS);
 
-  state_data = (void *)stomp_init_connection(STDOUT);
-  CU_ASSERT_FATAL(state_data != NULL);
+  int i;
+  char buf[BUFLEN];
+  for(i=0; inputs[i]!=NULL; i++) {
+    /* This processing is needed only in test because 'strtox' which is called
+     * in stomp_recv_data inhibit to detect string literal in arguments. */
+    memset(buf, 0, BUFLEN);
+    memcpy(buf, inputs[i], strlen(inputs[i]));
 
-  stomp_recv_data(recv_data, 10, state_data);
+    CU_ASSERT(stomp_recv_data(buf, strlen(buf), STDOUT, (void **)&frame) == RET_SUCCESS);
+    CU_ASSERT(frame != NULL);
+  }
 
-  frame_count = 0;
-  list_for_each_entry(frame, &stomp_frame_bucket.l_frame_h, l_bucket) {
-    int attr_count = 0;
-    frame_attr_t *attr;
-    list_for_each_entry(attr, &frame->l_attrs_h, l_frame) {
-      CU_ASSERT(strcmp(attr->data, "hogefuga") == 0);
+  CU_ASSERT(strcmp(frame->name, "CONNECT") == 0);
+  CU_ASSERT(GET_STATUS(frame, STATUS_IN_BUCKET));
+}
 
-      attr_count++;
-    }
-    CU_ASSERT(attr_count == 1);
+static void test_management(void) {
+  struct list_head *e;
+  int frame_count = 0;
 
+  list_for_each(e, &stomp_frame_bucket.h_frame) {
     frame_count++;
   }
   CU_ASSERT(frame_count == 1);
+}
 
-  CU_ASSERT(stomp_cleanup() == RET_SUCCESS);
+static void test_cleanup(void) {
+  struct list_head *e;
+  int frame_count = 0;
 
-  frame_count = 0;
-  list_for_each(e, &stomp_frame_bucket.l_frame_h) {
+  stomp_cleanup();
+  list_for_each(e, &stomp_frame_bucket.h_frame) {
     frame_count++;
   }
   CU_ASSERT(frame_count == 0);
@@ -50,7 +65,9 @@ int test_stomp(CU_pSuite suite) {
     return CU_ERROR;
   }
 
-  CU_add_test(suite, "test_basic_feature", test_basic_feature);
+  CU_add_test(suite, "start_connection and create a frame", test_initialize);
+  CU_add_test(suite, "check management data-structure", test_management);
+  CU_add_test(suite, "check cleanup processing", test_cleanup);
 
   return CU_SUCCESS;
 }
