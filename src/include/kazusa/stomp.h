@@ -37,10 +37,13 @@ typedef struct linedata_t {
   struct list_head l_frame;
 } linedata_t;
 
+/* These functions are implemented in stomp_driver.c */
 int stomp_init_bucket();
 int stomp_cleanup();
 int stomp_recv_data(char *, int, int, void **);
 
 extern frame_bucket_t stomp_frame_bucket;
+
+frame_t *get_frame_from_bucket();
 
 #endif

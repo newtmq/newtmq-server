@@ -21,6 +21,12 @@ int main(int argc, char **argv) {
     exit(1);
   }
 
+  /* init processing for each protocol manager */
+  if(stomp_init_bucket() == RET_ERROR) {
+    perror("failed to initialize stomp bucket");
+    exit(1);
+  }
+
   daemon_start(config);
 
   return 0;
