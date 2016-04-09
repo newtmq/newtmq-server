@@ -20,7 +20,7 @@ static void test_initialize(void) {
   frame_t *frame = NULL;
   struct list_head *e;
 
-  CU_ASSERT(stomp_init_bucket() == RET_SUCCESS);
+  CU_ASSERT(stomp_init() == RET_SUCCESS);
 
   int i;
   char buf[BUFLEN];
@@ -71,17 +71,6 @@ static void test_frame(void) {
   }
 }
 
-static void test_cleanup(void) {
-  struct list_head *e;
-  int frame_count = 0;
-
-  stomp_cleanup();
-  list_for_each(e, &stomp_frame_bucket.h_frame) {
-    frame_count++;
-  }
-  CU_ASSERT(frame_count == 0);
-}
-
 int test_stomp(CU_pSuite suite) {
   suite = CU_add_suite("STOMP Test", NULL, NULL);
   if(suite == NULL) {
@@ -91,7 +80,6 @@ int test_stomp(CU_pSuite suite) {
   CU_add_test(suite, "start_connection and create a frame", test_initialize);
   CU_add_test(suite, "check bucket", test_bucket);
   CU_add_test(suite, "check frame in bucket", test_frame);
-  CU_add_test(suite, "check cleanup processing", test_cleanup);
 
   return CU_SUCCESS;
 }

@@ -8,6 +8,9 @@ int main(int argc, char **argv) {
   kd_config config;
   int ret;
 
+  /* register signal handler */
+  init_signal_handler();
+
   // parse command-line arguments
   parse_opt(argc, argv, &args);
   if(args.config_path == NULL) {
@@ -22,7 +25,7 @@ int main(int argc, char **argv) {
   }
 
   /* init processing for each protocol manager */
-  if(stomp_init_bucket() == RET_ERROR) {
+  if(stomp_init() == RET_ERROR) {
     perror("failed to initialize stomp bucket");
     exit(1);
   }

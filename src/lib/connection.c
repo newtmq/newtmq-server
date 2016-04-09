@@ -1,42 +1,33 @@
 #include <kazusa/connection.h>
 #include <kazusa/config.h>
 #include <kazusa/stomp.h>
-#include <signal.h>
-#include <pthread.h>
+#include <kazusa/signal.h>
+#include <kazusa/common.h>
 
-static pthread_t thread_id;
+struct sock_info {
+  int sd;
+  int acc_sd;
+};
 
-void int_handler(int code) {
-  stomp_cleanup();
+static int cleanup_connection(void *data) {
+  struct sock_info *sinfo = (struct sock_info *)data;
+  int ret = RET_ERROR;
 
-  pthread_cancel(thread_id);
-}
+  if(sinfo == NULL) {
+    close(sinfo->acc_sd);
+    close(sinfo->sd);
 
-void *receive_worker(void *data) {
-  void *driver_cache = NULL;
-  char buf[BUFSIZE];
-
-  if(data != NULL) {
-    int sock = *(int *)data;
-
-    while(1) {
-      if(recv(sock, buf, sizeof(buf), 0) < 0) {
-        perror("recv");
-        break;
-      }
-  
-      stomp_recv_data(buf, strlen(buf), sock, &driver_cache);
-    }
+    ret = RET_SUCCESS;
   }
 
-  return NULL;
+  return ret;
 }
 
 int daemon_start(kd_config conf) {
   struct sockaddr_in addr;
-  int sd, acc_sd;
+  struct sock_info sinfo;
  
-  if((sd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
+  if((sinfo.sd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
     perror("socket");
     return -1;
   }
@@ -45,31 +36,36 @@ int daemon_start(kd_config conf) {
   addr.sin_port = htons(conf.port);
   addr.sin_addr.s_addr = INADDR_ANY;
  
-  if(bind(sd, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
+  if(bind(sinfo.sd, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
     perror("bind");
     return -1;
   }
  
-  if(listen(sd, QUEUENUM) < 0) {
+  if(listen(sinfo.sd, QUEUENUM) < 0) {
     perror("listen");
     return -1;
   }
  
   struct sockaddr_in from_addr;
   socklen_t sin_size = sizeof(struct sockaddr_in);
-  if((acc_sd = accept(sd, (struct sockaddr *)&from_addr, &sin_size)) < 0) {
+  if((sinfo.acc_sd = accept(sinfo.sd, (struct sockaddr *)&from_addr, &sin_size)) < 0) {
     perror("accept");
     return -1;
   }
 
-  signal(SIGINT, int_handler);
+  /* initialize processing after established connection */
+  set_signal_handler(cleanup_connection, &sinfo);
 
-  pthread_create(&thread_id, NULL, &receive_worker, &acc_sd);
+  char buf[BUFSIZE];
+  void *driver_cache = NULL;
+  while(1) {
+    if(recv(sinfo.acc_sd, buf, sizeof(buf), 0) < 0) {
+      perror("recv");
+      break;
+    }
 
-  pthread_join(thread_id, NULL);
- 
-  close(acc_sd);
-  close(sd);
+    stomp_recv_data(buf, strlen(buf), sinfo.acc_sd, &driver_cache);
+  }
  
   return 0;
 }

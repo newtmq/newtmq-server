@@ -1,5 +1,6 @@
 #include <kazusa/stomp.h>
 #include <kazusa/common.h>
+#include <kazusa/signal.h>
 
 /* This object is accessed globally */
 frame_bucket_t stomp_frame_bucket;
@@ -71,7 +72,7 @@ static int frame_setdata(char *data, int len, struct list_head *head) {
   return RET_SUCCESS;
 }
 
-int stomp_cleanup() {
+static int cleanup(void *data) {
   frame_t *frame, *h;
 
   pthread_mutex_lock(&stomp_frame_bucket.mutex);
@@ -81,13 +82,6 @@ int stomp_cleanup() {
     }
   }
   pthread_mutex_unlock(&stomp_frame_bucket.mutex);
-
-  return RET_SUCCESS;
-}
-
-int stomp_init_bucket() {
-  INIT_LIST_HEAD(&stomp_frame_bucket.h_frame);
-  pthread_mutex_init(&stomp_frame_bucket.mutex, NULL);
 
   return RET_SUCCESS;
 }
@@ -118,6 +112,15 @@ static void frame_create_finish(frame_t *frame) {
     list_add_tail(&frame->l_bucket, &stomp_frame_bucket.h_frame);
   }
   pthread_mutex_unlock(&stomp_frame_bucket.mutex);
+}
+
+int stomp_init() {
+  INIT_LIST_HEAD(&stomp_frame_bucket.h_frame);
+  pthread_mutex_init(&stomp_frame_bucket.mutex, NULL);
+
+  set_signal_handler(cleanup, NULL);
+
+  return RET_SUCCESS;
 }
 
 int stomp_recv_data(char *recv_data, int len, int sock, void **cache) {
