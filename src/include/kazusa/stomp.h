@@ -41,8 +41,8 @@ typedef struct linedata_t {
 int stomp_init();
 int stomp_recv_data(char *, int, int, void **);
 
-extern frame_bucket_t stomp_frame_bucket;
+void *stomp_manager(void *data);
 
-frame_t *get_frame_from_bucket();
+extern frame_bucket_t stomp_frame_bucket;
 
 #endif
