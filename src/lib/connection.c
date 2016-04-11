@@ -69,3 +69,18 @@ int daemon_start(kd_config conf) {
  
   return 0;
 }
+
+int send_msg(int sock, char **msg) {
+  int i;
+  char *line;
+
+  for(i=0; (line = msg[i])!=NULL; i++) {
+    if(send(sock, line, strlen(line), 0) < 0) {
+      printf("[ERROR] failed to send message [%s]\n", line);
+      return RET_ERROR;
+    }
+  }
+  send(sock, "\0", 1, 0);
+
+  return RET_SUCCESS;
+}

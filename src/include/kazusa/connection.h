@@ -12,5 +12,6 @@
 #define QUEUENUM 10
 
 int daemon_start(kd_config);
+int send_msg(int, char **);
 
 #endif

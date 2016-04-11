@@ -37,12 +37,27 @@ typedef struct linedata_t {
   struct list_head l_frame;
 } linedata_t;
 
+typedef struct stomp_header_handler {
+  char *name;
+  int (*handler)(char *, void *);
+} stomp_header_handler_t;
+
+/* This structure is usefull for validatino check */
+typedef struct request_header_t {
+} request_header_t;
+
 /* These functions are implemented in stomp_driver.c */
 int stomp_init();
 int stomp_recv_data(char *, int, int, void **);
 
+/* For registering a worker which dedicate to process STOMP frames */
 void *stomp_manager(void *data);
 
-extern frame_bucket_t stomp_frame_bucket;
+/* processing handlers for each STOMP protocol frames */
+frame_t *handler_stomp_connect(frame_t *);
+
+int iterate_header(struct list_head *, stomp_header_handler_t *, void *);
+
+void stomp_send_error(int, char *);
 
 #endif

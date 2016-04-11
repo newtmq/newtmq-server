@@ -16,4 +16,6 @@
 int test_optparse(CU_pSuite);
 int test_config(CU_pSuite);
 
+extern frame_bucket_t stomp_frame_bucket;
+
 #endif

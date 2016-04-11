@@ -2,22 +2,29 @@
 #include <kazusa/common.h>
 #include <kazusa/signal.h>
 
-struct stomp_handler {
+#include <string.h>
+
+typedef struct stomp_handler_t {
   char *name;
   frame_t *(*handler)(frame_t *);
-};
+} stomp_handler_t;
 
 /* This object is accessed globally */
 frame_bucket_t stomp_frame_bucket;
 
-static struct stomp_handler handlers[] = {
-  {"CONNECT", },
-  NULL,
+static stomp_handler_t stomp_handlers[] = {
+  {"SEND", NULL}, // not implemented yet
+  {"SUBSCRIBE", NULL}, // not implemented yet
+  {"CONNECT", handler_stomp_connect},
+  {"DISCONNECT", NULL}, // not implemented yet
+  {"UNSUBSCRIBE", NULL}, // not implemented yet
+  {"BEGIN", NULL}, // not implemented yet
+  {"COMMIT", NULL}, // not implemented yet
+  {"ABORT", NULL}, // not implemented yet
+  {"ACK", NULL}, // not implemented yet
+  {"NACK", NULL}, // not implemented yet
+  {0},
 };
-
-static frame_t *handler_connect(frame_t *frame) {
-  return RET_SUCCESS;
-}
 
 static frame_t *alloc_frame(int sock) {
   frame_t *ret;
@@ -87,7 +94,8 @@ static int frame_setdata(char *data, int len, struct list_head *head) {
 }
 
 static int cleanup(void *data) {
-  frame_t *frame, *h;
+  frame_t *frame;
+  frame_t *h = NULL;
 
   pthread_mutex_lock(&stomp_frame_bucket.mutex);
   { /* thread safe */
@@ -154,6 +162,7 @@ int stomp_recv_data(char *recv_data, int len, int sock, void **cache) {
   if(len == 0) {
     // the case when use send '^@' which means EOL.
     frame_create_finish(frame);
+    *cache = NULL;
   } else if(len == 1 && *recv_data == '\n') {
     CLR_STATUS(frame);
     SET_STATUS(frame, STATUS_INPUT_BODY);
@@ -169,8 +178,8 @@ static frame_t *get_frame_from_bucket() {
 
   pthread_mutex_lock(&stomp_frame_bucket.mutex);
   { /* thread safe */
-    if(! list_empty(&stomp_frame_bucket)) {
-      frame = list_entry(stomp_frame_bucket.next, frame_t, l_bucket);
+    if(! list_empty(&stomp_frame_bucket.h_frame)) {
+      frame = list_first_entry(&stomp_frame_bucket.h_frame, frame_t, l_bucket);
       list_del(&frame->l_bucket);
     }
   }
@@ -179,23 +188,60 @@ static frame_t *get_frame_from_bucket() {
   return frame;
 }
 
+int iterate_header(struct list_head *h_header, stomp_header_handler_t *handlers, void *data) {
+  linedata_t *line;
+
+  list_for_each_entry(line, h_header, l_frame) {
+    stomp_header_handler_t *h;
+    int i;
+
+    for(i=0; h=&handlers[i], h->name!=NULL; i++) {
+      if(strncmp(line->data, h->name, strlen(h->name)) == 0) {
+        int ret = (*h->handler)((line->data + strlen(h->name)), data);
+        if(ret == RET_ERROR) {
+          return RET_ERROR;
+        }
+      }
+    }
+  }
+
+  return RET_SUCCESS;
+}
+
+static int handle_frame(frame_t *frame) {
+  int i;
+  stomp_handler_t *h;
+
+  for(i=0; h=&stomp_handlers[i], h->name!=NULL; i++) {
+    if(strncmp(frame->name, h->name, strlen(h->name)) == 0) {
+      (*h->handler)(frame);
+      break;
+    }
+  }
+}
+
 void *stomp_manager(void *data) {
   frame_t *frame;
   while(1) {
     frame = get_frame_from_bucket();
     if(frame != NULL) {
-      // handle CONNECT or STOMP
-      // hanale SEND
-      // hanale SUBSCRIBE
-      // hanale UNSUBSCRIBE
-      // hanale BEGIN
-      // hanale COMMIT
-      // hanale ABORT
-      // hanale ACK
-      // hanale NACK
-      // hanale DISCONNECT
+      handle_frame(frame);
+
+      free_frame(frame);
     }
+    sleep(1);
   }
 
   return NULL;
+}
+
+void stomp_send_error(int sock, char *body) {
+  char *msg[] = {
+    "ERROR\n",
+    "\n",
+    body,
+    NULL,
+  };
+
+  send_msg(sock, msg);
 }
