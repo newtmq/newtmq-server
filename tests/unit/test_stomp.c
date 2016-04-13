@@ -2,7 +2,7 @@
 
 #include <kazusa/common.h>
 
-#include <stdio.h>
+#include <string.h>
 
 #define STDOUT 1
 #define BUFLEN 64
@@ -22,6 +22,7 @@ static void test_initialize(void) {
 
   CU_ASSERT(stomp_init() == RET_SUCCESS);
 
+
   int i;
   char buf[BUFLEN];
   for(i=0; inputs[i]!=NULL; i++) {
@@ -31,11 +32,13 @@ static void test_initialize(void) {
     memcpy(buf, inputs[i], strlen(inputs[i]));
 
     CU_ASSERT(stomp_recv_data(buf, strlen(buf), STDOUT, (void **)&frame) == RET_SUCCESS);
-    CU_ASSERT(frame != NULL);
-  }
 
-  CU_ASSERT(strcmp(frame->name, "CONNECT") == 0);
-  CU_ASSERT(GET_STATUS(frame, STATUS_IN_BUCKET));
+    if(strncmp(inputs[i], "\0", 1) == 0) {
+      CU_ASSERT(frame == NULL);
+    } else {
+      CU_ASSERT(frame != NULL);
+    }
+  }
 }
 
 static void test_bucket(void) {

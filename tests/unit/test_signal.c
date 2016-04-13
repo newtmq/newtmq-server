@@ -30,8 +30,8 @@ static void check_signal(void) {
   if((pid = fork()) == 0) {
     init_signal_handler();
 
-    CU_ASSERT(set_signal_handler(handler_test1, data) == RET_SUCCESS);
-    CU_ASSERT(set_signal_handler(handler_test2, data) == RET_SUCCESS);
+    CU_ASSERT(set_signal_handler(handler_test1, data) != NULL);
+    CU_ASSERT(set_signal_handler(handler_test2, data) != NULL);
 
     while(1);
   } else {

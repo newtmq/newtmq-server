@@ -1,7 +1,9 @@
 #include <kazusa/common.h>
-#include <kazusa/stomp.h>
 #include <kazusa/optparse.h>
 #include <kazusa/config.h>
+#include <kazusa/daemon.h>
+
+#include <stdlib.h>
 
 int main(int argc, char **argv) {
   struct cmd_args args;
@@ -24,13 +26,13 @@ int main(int argc, char **argv) {
     exit(1);
   }
 
-  /* init processing for each protocol manager */
-  if(stomp_init() == RET_ERROR) {
-    perror("failed to initialize stomp bucket");
+  if(daemon_initialize() == RET_ERROR) {
     exit(1);
   }
 
-  daemon_start(config);
+  if(daemon_start(config) == RET_ERROR) {
+    exit(1);
+  }
 
   return 0;
 }

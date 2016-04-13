@@ -9,7 +9,8 @@ typedef struct sighandle_t {
   struct list_head list;
 } sighandle_t;
 
-int set_signal_handler(int (*)(void *), void *);
+sighandle_t *set_signal_handler(int (*)(void *), void *);
+int del_signal_handler(sighandle_t *);
 void init_signal_handler();
 
 #endif

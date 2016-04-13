@@ -16,6 +16,8 @@
 #define STATUS_IN_BUCKET    (1 << 3)
 #define STATUS_IN_QUEUE     (1 << 4)
 
+#define not_bl(buf) (buf!=NULL && buf[0] != 0 && buf[0] != '\r' && buf[0] != '\n')
+
 typedef struct frame_bucket_t {
   pthread_mutex_t mutex;
   struct list_head h_frame;
@@ -51,7 +53,7 @@ int stomp_init();
 int stomp_recv_data(char *, int, int, void **);
 
 /* For registering a worker which dedicate to process STOMP frames */
-void *stomp_manager(void *data);
+void *stomp_management_worker(void *data);
 
 /* processing handlers for each STOMP protocol frames */
 frame_t *handler_stomp_connect(frame_t *);

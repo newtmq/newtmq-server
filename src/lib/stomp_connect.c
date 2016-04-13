@@ -6,45 +6,64 @@
 
 #define STATUS_VERSION (1 << 0)
 
-static int handler_version(char *context, void *data) {
-  int ret = RET_ERROR;
-  int *status = (int *)data;
-  
-  if(status != NULL) {
-    if(strcmp(context, "1.2") == 0) {
-      *status |= STATUS_VERSION;
-      ret = RET_SUCCESS;
-    }
+typedef struct conninfo {
+  char *userid;
+  char *passwd;
+} conninfo_t;
+
+static int handler_login(char *context, void *data) {
+  conninfo_t *conninfo = (conninfo_t *)data;
+  if(conninfo != NULL) {
+    conninfo->userid = context;
   }
 
-  return ret;
+  return RET_SUCCESS;
+}
+
+static int handler_passcode(char *context, void *data) {
+  conninfo_t *conninfo = (conninfo_t *)data;
+  if(conninfo != NULL) {
+    conninfo->passwd = context;
+  }
+
+  return RET_SUCCESS;
 }
 
 stomp_header_handler_t handlers[] = {
-  {"accept-version:", handler_version},
+  {"login:", handler_login},
+  {"passcode:", handler_passcode},
   {0},
 };
 
 static int send_connected_msg(int sock) {
   char *msg[] = {
     "CONNECTED\n",
+    "session:session-xEhXUf-LPI_ZxLiRqjUPFA\n",
+    "heart-beat:0,0\n",
+    "server:kazusad/0.0.1\n",
     "version:1.2\n",
+    "\n",
+    "\0",
     NULL,
   };
+
+
+  send_msg(sock, msg);
 
   return RET_SUCCESS;
 }
 
 frame_t *handler_stomp_connect(frame_t *frame) {
-  int header_status = 0;
+  conninfo_t cinfo = {0};
 
-  if(iterate_header(&frame->h_attrs, handlers, &header_status) == RET_ERROR) {
+  if(iterate_header(&frame->h_attrs, handlers, &cinfo) == RET_ERROR) {
     stomp_send_error(frame->sock, "failed to validate header\n");
+    return NULL;
   }
 
-  if((header_status & STATUS_VERSION) == 0) {
-    stomp_send_error(frame->sock, "version negotiation failure\n");
-  }
+  /* XXX: needs authentication and authorization processing */
+  printf("[debug] (handler_stomp_connect) userid: %s\n", cinfo.userid);
+  printf("[debug] (handler_stomp_connect) passwd: %s\n", cinfo.passwd);
 
   send_connected_msg(frame->sock);
 

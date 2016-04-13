@@ -12,6 +12,7 @@ static void cleanup_handler() {
   sighandle_t *handler, *h;
 
   list_for_each_entry_safe(handler, h, &h_signal, list) {
+    list_del(&handler->list);
     free(handler);
   }
 }
@@ -27,12 +28,12 @@ static void int_handle(int code) {
   exit(0);
 }
 
-int set_signal_handler(int (*func)(void *), void *arg) {
+sighandle_t *set_signal_handler(int (*func)(void *), void *arg) {
   sighandle_t *handler;
 
   handler = (sighandle_t *)malloc(sizeof(sighandle_t));
   if(handler == NULL) {
-    return RET_ERROR;
+    return NULL;
   }
   memset(handler, 0, sizeof(sighandle_t));
   handler->func = func;
@@ -40,7 +41,20 @@ int set_signal_handler(int (*func)(void *), void *arg) {
 
   list_add(&handler->list, &h_signal);
 
-  return RET_SUCCESS;
+  return handler;
+}
+
+int del_signal_handler(sighandle_t *handler) {
+  int ret = RET_ERROR;
+
+  if(handler != NULL) {
+    list_del(&handler->list);
+    free(handler);
+
+    ret = RET_SUCCESS;
+  }
+
+  return ret;
 }
 
 void init_signal_handler() {

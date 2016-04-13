@@ -26,6 +26,30 @@ static stomp_handler_t stomp_handlers[] = {
   {0},
 };
 
+static char *strtok_single(char * str, char const * delims) {
+  static char  * src = NULL;
+  char  *  p,  * ret = 0;
+
+  if(str != NULL){
+    src = str;
+  }
+
+  if(src == NULL){
+    return NULL;
+  }
+
+  if((p = strpbrk (src, delims)) != NULL){
+    *p  = 0;
+    ret = src;
+    src = ++p;
+  }else if (*src){
+    ret = src;
+    src = NULL;
+  }
+
+  return ret;
+}
+
 static frame_t *alloc_frame(int sock) {
   frame_t *ret;
 
@@ -55,7 +79,10 @@ static void free_frame(frame_t *frame) {
   list_for_each_entry(data, &frame->h_data, l_frame) {
     free(data);
   }
-  list_del(&frame->l_bucket);
+
+  if(frame->l_bucket.next != NULL && frame->l_bucket.prev != NULL) {
+    list_del(&frame->l_bucket);
+  }
 
   free(frame);
 }
@@ -108,32 +135,62 @@ static int cleanup(void *data) {
   return RET_SUCCESS;
 }
 
-static void frame_creating(char *recv_data, int len, frame_t *frame) {
-  char *line, *pointer;
-
-  for(pointer = recv_data; line = strtok(pointer, "\n"); pointer += strlen(line) + 1) {
-    int attrlen = strlen(line);
-
-    if(GET_STATUS(frame, STATUS_BORN)) {
-      frame_setname(line, attrlen, frame);
-    } else if(GET_STATUS(frame, STATUS_INPUT_HEADER)) {
-      frame_setdata(line, attrlen, &frame->h_attrs);
-    } else if(GET_STATUS(frame, STATUS_INPUT_BODY)) {
-      frame_setdata(line, attrlen, &frame->h_data);
-    }
-  }
-}
-
 static void frame_create_finish(frame_t *frame) {
   // last processing for current frame_t object
   CLR_STATUS(frame);
   SET_STATUS(frame, STATUS_IN_BUCKET);
+
+  printf("[debug] (frame_crate_finish) frame: %p\n", frame);
 
   pthread_mutex_lock(&stomp_frame_bucket.mutex);
   { /* thread safe */
     list_add_tail(&frame->l_bucket, &stomp_frame_bucket.h_frame);
   }
   pthread_mutex_unlock(&stomp_frame_bucket.mutex);
+}
+
+static int making_frame(char *recv_data, int len, frame_t *frame) {
+  char *p, *line;
+
+  for(p=recv_data; line=strtok_single(p, "\n"); p += strlen(line) + 1) {
+    int attrlen = strlen(line);
+
+    printf("[debug] (making_frame) %s [%d]\n", line, attrlen);
+
+    if(not_bl(line)) {
+      if(GET_STATUS(frame, STATUS_BORN)) {
+        frame_setname(line, attrlen, frame);
+      } else if(GET_STATUS(frame, STATUS_INPUT_HEADER)) {
+        frame_setdata(line, attrlen, &frame->h_attrs);
+      } else if(GET_STATUS(frame, STATUS_INPUT_BODY)) {
+        frame_setdata(line, attrlen, &frame->h_data);
+      }
+    } else {
+      /* The case of blankline is inputed */
+      if(GET_STATUS(frame, STATUS_BORN)) {
+        stomp_send_error(frame->sock, "syntax error");
+
+        free_frame(frame);
+
+        return 1;
+      } else if(GET_STATUS(frame, STATUS_INPUT_BODY)) {
+        frame_create_finish(frame);
+
+        return 1;
+      } else if(GET_STATUS(frame, STATUS_INPUT_HEADER)) {
+        if(strcmp(frame->name, "SEND") == 0 || strcmp(frame->name, "MESSAGE") == 0) {
+          CLR_STATUS(frame);
+          SET_STATUS(frame, STATUS_INPUT_BODY);
+        } else {
+          frame_create_finish(frame);
+
+          return 1;
+        }
+      }
+    }
+  }
+
+  return 0;
 }
 
 int stomp_init() {
@@ -149,6 +206,11 @@ int stomp_recv_data(char *recv_data, int len, int sock, void **cache) {
   frame_t *frame = (frame_t *)*cache;
 
   if(frame == NULL) {
+    /* ignore no meaning blank input */
+    if(! not_bl(recv_data)) {
+      return RET_SUCCESS;
+    }
+
     frame = alloc_frame(sock);
     if(frame == NULL) {
       perror("[stomp_recv_data] failed to allocate memory");
@@ -160,14 +222,13 @@ int stomp_recv_data(char *recv_data, int len, int sock, void **cache) {
   }
 
   if(len == 0) {
-    // the case when use send '^@' which means EOL.
+    /* Stop making frame in any way. This means user send '^@' which means EOL */
     frame_create_finish(frame);
     *cache = NULL;
-  } else if(len == 1 && *recv_data == '\n') {
-    CLR_STATUS(frame);
-    SET_STATUS(frame, STATUS_INPUT_BODY);
-  } else {
-    frame_creating(recv_data, len, frame);
+  }
+  
+  if(making_frame(recv_data, len, frame) > 0) {
+    *cache = NULL;
   }
 
   return RET_SUCCESS;
@@ -196,6 +257,7 @@ int iterate_header(struct list_head *h_header, stomp_header_handler_t *handlers,
     int i;
 
     for(i=0; h=&handlers[i], h->name!=NULL; i++) {
+      printf("[debug] (iterate_header) |%s / %s|\n", line->data, h->name);
       if(strncmp(line->data, h->name, strlen(h->name)) == 0) {
         int ret = (*h->handler)((line->data + strlen(h->name)), data);
         if(ret == RET_ERROR) {
@@ -220,16 +282,18 @@ static int handle_frame(frame_t *frame) {
   }
 }
 
-void *stomp_manager(void *data) {
+void *stomp_management_worker(void *data) {
   frame_t *frame;
+
   while(1) {
     frame = get_frame_from_bucket();
     if(frame != NULL) {
+      printf("[debug] (stomp_management_worker) %p\n", frame);
+
       handle_frame(frame);
 
       free_frame(frame);
     }
-    sleep(1);
   }
 
   return NULL;

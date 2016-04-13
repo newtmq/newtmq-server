@@ -11,7 +11,7 @@
 #define BUFSIZE 1024
 #define QUEUENUM 10
 
-int daemon_start(kd_config);
+void *connection_worker(void *);
 int send_msg(int, char **);
 
 #endif
