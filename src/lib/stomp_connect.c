@@ -38,15 +38,11 @@ stomp_header_handler_t handlers[] = {
 static int send_connected_msg(int sock) {
   char *msg[] = {
     "CONNECTED\n",
-    "session:session-xEhXUf-LPI_ZxLiRqjUPFA\n",
-    "heart-beat:0,0\n",
-    "server:kazusad/0.0.1\n",
     "version:1.2\n",
     "\n",
     "\0",
     NULL,
   };
-
 
   send_msg(sock, msg);
 
