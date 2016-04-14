@@ -96,7 +96,7 @@ static void frame_setname(char *data, int len, frame_t *frame) {
   memcpy(frame->name, data, len);
 
   CLR_STATUS(frame);
-  SET_STATUS(frame, STATUS_INPUT_HEADER);
+  SET_STATUS(frame, STATUS_INPUT_NAME);
 }
 
 static int frame_setdata(char *data, int len, struct list_head *head) {
@@ -160,6 +160,12 @@ static int making_frame(char *recv_data, int len, frame_t *frame) {
     if(not_bl(line)) {
       if(GET_STATUS(frame, STATUS_BORN)) {
         frame_setname(line, attrlen, frame);
+      } else if(GET_STATUS(frame, STATUS_INPUT_NAME)) {
+        /* In some case, a blank line may inserted between name and headers */
+        DEL_STATUS(frame, STATUS_INPUT_NAME);
+        SET_STATUS(frame, STATUS_INPUT_HEADER);
+
+        frame_setdata(line, attrlen, &frame->h_attrs);
       } else if(GET_STATUS(frame, STATUS_INPUT_HEADER)) {
         frame_setdata(line, attrlen, &frame->h_attrs);
       } else if(GET_STATUS(frame, STATUS_INPUT_BODY)) {
@@ -177,6 +183,9 @@ static int making_frame(char *recv_data, int len, frame_t *frame) {
         frame_create_finish(frame);
 
         return 1;
+      } else if(GET_STATUS(frame, STATUS_INPUT_NAME)) {
+        // ignore
+        continue;
       } else if(GET_STATUS(frame, STATUS_INPUT_HEADER)) {
         if(strcmp(frame->name, "SEND") == 0 || strcmp(frame->name, "MESSAGE") == 0) {
           CLR_STATUS(frame);

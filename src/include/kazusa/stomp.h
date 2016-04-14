@@ -11,10 +11,11 @@
 #define LD_MAX 256
 
 #define STATUS_BORN         (1 << 0)
-#define STATUS_INPUT_HEADER (1 << 1)
-#define STATUS_INPUT_BODY   (1 << 2)
-#define STATUS_IN_BUCKET    (1 << 3)
-#define STATUS_IN_QUEUE     (1 << 4)
+#define STATUS_INPUT_NAME   (1 << 1)
+#define STATUS_INPUT_HEADER (1 << 2)
+#define STATUS_INPUT_BODY   (1 << 3)
+#define STATUS_IN_BUCKET    (1 << 4)
+#define STATUS_IN_QUEUE     (1 << 5)
 
 #define not_bl(buf) (buf!=NULL && buf[0] != 0 && buf[0] != '\r' && buf[0] != '\n')
 
