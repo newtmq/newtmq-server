@@ -13,8 +13,6 @@ static void test_initialize(void) {
                      "login:guest\n", \
                      "passcode:guest\n", \
                      "\n", \
-                     "hogefuga\n", \
-                     "foobar\n", \
                      "\0", \
                      NULL };
   frame_t *frame = NULL;
@@ -33,7 +31,7 @@ static void test_initialize(void) {
 
     CU_ASSERT(stomp_recv_data(buf, strlen(buf), STDOUT, (void **)&frame) == RET_SUCCESS);
 
-    if(strncmp(inputs[i], "\0", 1) == 0) {
+    if(strcmp(inputs[i], "\n") == 0 || strcmp(inputs[i], "\0") == 0) {
       CU_ASSERT(frame == NULL);
     } else {
       CU_ASSERT(frame != NULL);
@@ -64,13 +62,6 @@ static void test_frame(void) {
       frame_count++;
     }
     CU_ASSERT(frame_count == 3);
-
-    /* check data lines in target frame */
-    frame_count = 0;
-    list_for_each(e, &frame->h_data) {
-      frame_count++;
-    }
-    CU_ASSERT(frame_count == 2);
   }
 }
 
