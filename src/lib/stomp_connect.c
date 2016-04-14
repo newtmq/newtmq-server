@@ -3,27 +3,28 @@
 #include <kazusa/common.h>
 
 #include <string.h>
+#include <assert.h>
 
 #define STATUS_VERSION (1 << 0)
 
-typedef struct conninfo {
+typedef struct authinfo {
   char *userid;
   char *passwd;
-} conninfo_t;
+} authinfo_t;
 
 static int handler_login(char *context, void *data) {
-  conninfo_t *conninfo = (conninfo_t *)data;
-  if(conninfo != NULL) {
-    conninfo->userid = context;
+  authinfo_t *authinfo = (authinfo_t *)data;
+  if(authinfo != NULL) {
+    authinfo->userid = context;
   }
 
   return RET_SUCCESS;
 }
 
 static int handler_passcode(char *context, void *data) {
-  conninfo_t *conninfo = (conninfo_t *)data;
-  if(conninfo != NULL) {
-    conninfo->passwd = context;
+  authinfo_t *authinfo = (authinfo_t *)data;
+  if(authinfo != NULL) {
+    authinfo->passwd = context;
   }
 
   return RET_SUCCESS;
@@ -50,16 +51,22 @@ static int send_connected_msg(int sock) {
 }
 
 frame_t *handler_stomp_connect(frame_t *frame) {
-  conninfo_t cinfo = {0};
+  authinfo_t auth = {0};
 
-  if(iterate_header(&frame->h_attrs, handlers, &cinfo) == RET_ERROR) {
+  assert(frame != NULL);
+  assert(frame->cinfo != NULL);
+
+  if(iterate_header(&frame->h_attrs, handlers, &auth) == RET_ERROR) {
     stomp_send_error(frame->sock, "failed to validate header\n");
     return NULL;
   }
 
+  CLR(frame->cinfo);
+  SET(frame->cinfo, STATE_CONNECTED);
+
   /* XXX: needs authentication and authorization processing */
-  printf("[debug] (handler_stomp_connect) userid: %s\n", cinfo.userid);
-  printf("[debug] (handler_stomp_connect) passwd: %s\n", cinfo.passwd);
+  printf("[debug] (handler_stomp_connect) userid: %s\n", auth.userid);
+  printf("[debug] (handler_stomp_connect) passwd: %s\n", auth.passwd);
 
   send_connected_msg(frame->sock);
 

@@ -10,6 +10,7 @@
 #define FNAME_LEN 64
 #define LD_MAX 256
 
+/* These values specify status of making frame */
 #define STATUS_BORN         (1 << 0)
 #define STATUS_INPUT_NAME   (1 << 1)
 #define STATUS_INPUT_HEADER (1 << 2)
@@ -17,7 +18,13 @@
 #define STATUS_IN_BUCKET    (1 << 4)
 #define STATUS_IN_QUEUE     (1 << 5)
 
+/* These values specify state of connection */
+#define STATE_INIT (1 << 0)
+#define STATE_CONNECTED (1 << 1)
+
 #define not_bl(buf) (buf!=NULL && buf[0] != 0 && buf[0] != '\r' && buf[0] != '\n')
+
+typedef struct stomp_conninfo_t stomp_conninfo_t;
 
 typedef struct frame_bucket_t {
   pthread_mutex_t mutex;
@@ -32,6 +39,9 @@ typedef struct frame_t {
   struct list_head h_attrs;
   struct list_head h_data;
   struct list_head l_bucket;
+
+  /* To know the connection state */
+  stomp_conninfo_t *cinfo;
 } frame_t;
 
 /* This describes a Frame attribute */
@@ -45,13 +55,16 @@ typedef struct stomp_header_handler {
   int (*handler)(char *, void *);
 } stomp_header_handler_t;
 
-/* This structure is usefull for validatino check */
-typedef struct request_header_t {
-} request_header_t;
+/* This is alive during connection is active */
+struct stomp_conninfo_t {
+  int status;
+  frame_t *frame;
+};
 
 /* These functions are implemented in stomp_driver.c */
 int stomp_init();
-int stomp_recv_data(char *, int, int, void **);
+stomp_conninfo_t *stomp_conn_init();
+int stomp_recv_data(char *, int, int, void *);
 
 /* For registering a worker which dedicate to process STOMP frames */
 void *stomp_management_worker(void *data);

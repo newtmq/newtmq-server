@@ -6,12 +6,23 @@
 
 #include <pthread.h>
 
-static int cleanup_connection(void *data) {
-  int *sock = (int *)data;
+/* This data structure is used only in the active connection
+ * and exists one object per connection. */
+struct conninfo {
+  int sock;
+  void *data;
+};
+
+static int cleanup_co_worker(void *data) {
+  struct conninfo *cinfo = (struct conninfo *)data;
   int ret = RET_ERROR;
 
-  if(sock == NULL) {
-    close(*sock);
+  if(cinfo != NULL) {
+    close(cinfo->sock);
+
+    if(cinfo->data != NULL) {
+      free(cinfo->data);
+    }
 
     ret = RET_SUCCESS;
   }
@@ -19,22 +30,39 @@ static int cleanup_connection(void *data) {
   return ret;
 }
 
+static int cleanup_connection(void *data) {
+  int *sock = (int *)data;
+  int ret = RET_ERROR;
+
+  if(sock != NULL) {
+    close(*sock);
+
+    ret = RET_SUCCESS;
+  }
+  return ret;
+}
+
 static void *connection_co_worker(void *data) {
   int *sock = (int *)data;
   char buf[BUFSIZE];
-  void *driver_cache = NULL;
   sighandle_t *handler;
+  struct conninfo cinfo = {0};
 
   if(sock != NULL) {
+    cinfo.sock = *sock;
+    cinfo.data = (void *)stomp_conn_init();
+
+    printf("[debug] (connection_co_worker) cinfo.data > %p\n", cinfo.data);
+
     /* initialize processing after established connection */
-    handler = set_signal_handler(cleanup_connection, sock);
+    handler = set_signal_handler(cleanup_co_worker, &cinfo);
   
     while(1) {
       memset(buf, 0, BUFSIZE);
       if(! read(*sock, buf, sizeof(buf))) {
         break;
       }
-      stomp_recv_data(buf, strlen(buf), *sock, &driver_cache);
+      stomp_recv_data(buf, strlen(buf), *sock, cinfo.data);
     }
 
     del_signal_handler(handler);

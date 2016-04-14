@@ -50,7 +50,7 @@ static char *strtok_single(char * str, char const * delims) {
   return ret;
 }
 
-static frame_t *alloc_frame(int sock) {
+static frame_t *alloc_frame() {
   frame_t *ret;
 
   ret = (frame_t *)malloc(sizeof(frame_t));
@@ -64,7 +64,8 @@ static frame_t *alloc_frame(int sock) {
   INIT_LIST_HEAD(&ret->h_attrs);
   INIT_LIST_HEAD(&ret->h_data);
 
-  ret->sock = sock;
+  ret->sock = 0;
+  ret->cinfo = NULL;
   ret->status = STATUS_BORN;
 
   return ret;
@@ -95,8 +96,8 @@ static void frame_setname(char *data, int len, frame_t *frame) {
   }
   memcpy(frame->name, data, len);
 
-  CLR_STATUS(frame);
-  SET_STATUS(frame, STATUS_INPUT_NAME);
+  CLR(frame);
+  SET(frame, STATUS_INPUT_NAME);
 }
 
 static int frame_setdata(char *data, int len, struct list_head *head) {
@@ -124,6 +125,8 @@ static int cleanup(void *data) {
   frame_t *frame;
   frame_t *h = NULL;
 
+  printf("[debug] (stomp/cleanup)\n");
+
   pthread_mutex_lock(&stomp_frame_bucket.mutex);
   { /* thread safe */
     list_for_each_entry_safe(frame, h, &stomp_frame_bucket.h_frame, l_bucket) {
@@ -132,13 +135,15 @@ static int cleanup(void *data) {
   }
   pthread_mutex_unlock(&stomp_frame_bucket.mutex);
 
+  printf("[debug] (stomp/cleanup) finished\n");
+
   return RET_SUCCESS;
 }
 
 static void frame_create_finish(frame_t *frame) {
   // last processing for current frame_t object
-  CLR_STATUS(frame);
-  SET_STATUS(frame, STATUS_IN_BUCKET);
+  CLR(frame);
+  SET(frame, STATUS_IN_BUCKET);
 
   printf("[debug] (frame_crate_finish) frame: %p\n", frame);
 
@@ -158,38 +163,38 @@ static int making_frame(char *recv_data, int len, frame_t *frame) {
     printf("[debug] (making_frame) %s [%d]\n", line, attrlen);
 
     if(not_bl(line)) {
-      if(GET_STATUS(frame, STATUS_BORN)) {
+      if(GET(frame, STATUS_BORN)) {
         frame_setname(line, attrlen, frame);
-      } else if(GET_STATUS(frame, STATUS_INPUT_NAME)) {
+      } else if(GET(frame, STATUS_INPUT_NAME)) {
         /* In some case, a blank line may inserted between name and headers */
-        DEL_STATUS(frame, STATUS_INPUT_NAME);
-        SET_STATUS(frame, STATUS_INPUT_HEADER);
+        DEL(frame, STATUS_INPUT_NAME);
+        SET(frame, STATUS_INPUT_HEADER);
 
         frame_setdata(line, attrlen, &frame->h_attrs);
-      } else if(GET_STATUS(frame, STATUS_INPUT_HEADER)) {
+      } else if(GET(frame, STATUS_INPUT_HEADER)) {
         frame_setdata(line, attrlen, &frame->h_attrs);
-      } else if(GET_STATUS(frame, STATUS_INPUT_BODY)) {
+      } else if(GET(frame, STATUS_INPUT_BODY)) {
         frame_setdata(line, attrlen, &frame->h_data);
       }
     } else {
       /* The case of blankline is inputed */
-      if(GET_STATUS(frame, STATUS_BORN)) {
+      if(GET(frame, STATUS_BORN)) {
         stomp_send_error(frame->sock, "syntax error");
 
         free_frame(frame);
 
         return 1;
-      } else if(GET_STATUS(frame, STATUS_INPUT_BODY)) {
+      } else if(GET(frame, STATUS_INPUT_BODY)) {
         frame_create_finish(frame);
 
         return 1;
-      } else if(GET_STATUS(frame, STATUS_INPUT_NAME)) {
+      } else if(GET(frame, STATUS_INPUT_NAME)) {
         // ignore
         continue;
-      } else if(GET_STATUS(frame, STATUS_INPUT_HEADER)) {
+      } else if(GET(frame, STATUS_INPUT_HEADER)) {
         if(strcmp(frame->name, "SEND") == 0 || strcmp(frame->name, "MESSAGE") == 0) {
-          CLR_STATUS(frame);
-          SET_STATUS(frame, STATUS_INPUT_BODY);
+          CLR(frame);
+          SET(frame, STATUS_INPUT_BODY);
         } else {
           frame_create_finish(frame);
 
@@ -211,33 +216,59 @@ int stomp_init() {
   return RET_SUCCESS;
 }
 
-int stomp_recv_data(char *recv_data, int len, int sock, void **cache) {
-  frame_t *frame = (frame_t *)*cache;
+stomp_conninfo_t *stomp_conn_init() {
+  stomp_conninfo_t *ret;
 
-  if(frame == NULL) {
+  ret = (stomp_conninfo_t *)malloc(sizeof(stomp_conninfo_t));
+  if(ret != NULL) {
+    memset(ret, 0, sizeof(stomp_conninfo_t));
+
+    /* intiialize params */
+    ret->status = 0;
+    SET(ret, STATE_INIT);
+  }
+
+  return ret;
+}
+
+int stomp_recv_data(char *recv_data, int len, int sock, void *_cinfo) {
+  stomp_conninfo_t *cinfo = (stomp_conninfo_t *)_cinfo;
+
+  if(cinfo == NULL) {
+    return RET_ERROR;
+  }
+
+  if(cinfo->frame == NULL) {
     /* ignore no meaning blank input */
     if(! not_bl(recv_data)) {
       return RET_SUCCESS;
     }
 
-    frame = alloc_frame(sock);
+    frame_t *frame = alloc_frame(sock);
     if(frame == NULL) {
       perror("[stomp_recv_data] failed to allocate memory");
       return RET_ERROR;
     }
 
-    /* set a frame to take over this data */
-    *cache = frame;
+    /* initialize frame params */
+    frame->sock = sock;
+    frame->cinfo = cinfo;
+
+    /* to reference this values over the 'stomp_recv_data' calling */
+    cinfo->frame = frame;
   }
 
   if(len == 0) {
     /* Stop making frame in any way. This means user send '^@' which means EOL */
-    frame_create_finish(frame);
-    *cache = NULL;
+    frame_create_finish(cinfo->frame);
+
+    /* Because target frame is stored in frame bucket */
+    cinfo->frame = NULL;
   }
   
-  if(making_frame(recv_data, len, frame) > 0) {
-    *cache = NULL;
+  if(making_frame(recv_data, len, cinfo->frame) > 0) {
+    /* In this case, some problem is occurred */
+    cinfo->frame = NULL;
   }
 
   return RET_SUCCESS;
