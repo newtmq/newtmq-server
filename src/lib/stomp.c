@@ -125,8 +125,6 @@ static int cleanup(void *data) {
   frame_t *frame;
   frame_t *h = NULL;
 
-  printf("[debug] (stomp/cleanup)\n");
-
   pthread_mutex_lock(&stomp_frame_bucket.mutex);
   { /* thread safe */
     list_for_each_entry_safe(frame, h, &stomp_frame_bucket.h_frame, l_bucket) {
@@ -135,8 +133,6 @@ static int cleanup(void *data) {
   }
   pthread_mutex_unlock(&stomp_frame_bucket.mutex);
 
-  printf("[debug] (stomp/cleanup) finished\n");
-
   return RET_SUCCESS;
 }
 
@@ -144,8 +140,6 @@ static void frame_create_finish(frame_t *frame) {
   // last processing for current frame_t object
   CLR(frame);
   SET(frame, STATUS_IN_BUCKET);
-
-  printf("[debug] (frame_crate_finish) frame: %p\n", frame);
 
   pthread_mutex_lock(&stomp_frame_bucket.mutex);
   { /* thread safe */
@@ -159,8 +153,6 @@ static int making_frame(char *recv_data, int len, frame_t *frame) {
 
   for(p=recv_data; line=strtok_single(p, "\n"); p += strlen(line) + 1) {
     int attrlen = strlen(line);
-
-    printf("[debug] (making_frame) %s [%d]\n", line, attrlen);
 
     if(not_bl(line)) {
       if(GET(frame, STATUS_BORN)) {
@@ -297,7 +289,6 @@ int iterate_header(struct list_head *h_header, stomp_header_handler_t *handlers,
     int i;
 
     for(i=0; h=&handlers[i], h->name!=NULL; i++) {
-      printf("[debug] (iterate_header) |%s / %s|\n", line->data, h->name);
       if(strncmp(line->data, h->name, strlen(h->name)) == 0) {
         int ret = (*h->handler)((line->data + strlen(h->name)), data);
         if(ret == RET_ERROR) {
@@ -328,8 +319,6 @@ void *stomp_management_worker(void *data) {
   while(1) {
     frame = get_frame_from_bucket();
     if(frame != NULL) {
-      printf("[debug] (stomp_management_worker) %p\n", frame);
-
       handle_frame(frame);
 
       free_frame(frame);

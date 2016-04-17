@@ -15,11 +15,13 @@ static void test_initialize(void) {
                      "\n", \
                      "\0", \
                      NULL };
-  frame_t *frame = NULL;
   struct list_head *e;
+  stomp_conninfo_t *c_info;
 
   CU_ASSERT(stomp_init() == RET_SUCCESS);
 
+  c_info = (stomp_conninfo_t *)stomp_conn_init();
+  CU_ASSERT(c_info != NULL);
 
   int i;
   char buf[BUFLEN];
@@ -29,12 +31,12 @@ static void test_initialize(void) {
     memset(buf, 0, BUFLEN);
     memcpy(buf, inputs[i], strlen(inputs[i]));
 
-    CU_ASSERT(stomp_recv_data(buf, strlen(buf), STDOUT, (void **)&frame) == RET_SUCCESS);
+    CU_ASSERT(stomp_recv_data(buf, strlen(buf), STDOUT, c_info) == RET_SUCCESS);
 
     if(strcmp(inputs[i], "\n") == 0 || strcmp(inputs[i], "\0") == 0) {
-      CU_ASSERT(frame == NULL);
+      CU_ASSERT(c_info->frame == NULL);
     } else {
-      CU_ASSERT(frame != NULL);
+      CU_ASSERT(c_info->frame != NULL);
     }
   }
 }
