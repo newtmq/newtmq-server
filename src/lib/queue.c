@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <limits.h>
 
 #include <kazusa/common.h>
 #include <kazusa/list.h>
@@ -48,23 +49,28 @@ static struct queue *create_queue() {
 
 static void clear_entry(struct q_entry *e) {
   if(e != NULL) {
+    list_del(&e->l_queue);
     free(e);
   }
 }
 
 static void clear_queue(struct queue* q) {
-  struct q_entry *e;
+  struct q_entry *entry, *e;
 
   if(q != NULL) {
-    list_for_each_entry(e, &q->h_entry, l_queue) {
-      clear_entry(e);
+    list_for_each_entry_safe(entry, e, &q->h_entry, l_queue) {
+      clear_entry(entry);
     }
+    if(! list_empty(&q->l_box)) {
+      list_del(&q->l_box);
+    }
+    free(q);
   }
 }
 
 static struct queue *get_queue(char *qname) {
   unsigned long hashnum = hash(qname);
-  int index = (int) hashnum % QB_SIZE;
+  int index = (hashnum % QB_SIZE) & INT_MAX;
   struct queue *queue = NULL;
 
   /* create new_queue*/
@@ -95,6 +101,12 @@ static struct queue *get_queue(char *qname) {
     queue = create_queue();
     if(queue != NULL) {
       queue->hashnum = hashnum;
+
+      pthread_mutex_lock(&queuebox_lock);
+      {
+        list_add(&queue->l_box, queuebox[index]);
+      }
+      pthread_mutex_unlock(&queuebox_lock);
     }
   }
 
@@ -103,7 +115,7 @@ static struct queue *get_queue(char *qname) {
 
 int enqueue(void *data, char *qname) {
   struct q_entry* e;
-  struct queue* q;
+  struct queue *q;
 
   if(data == NULL) {
     return RET_ERROR;
@@ -151,7 +163,7 @@ void *dequeue(char *qname) {
   }
   pthread_mutex_unlock(&q->mutex);
 
-  return e;
+  return e->data;
 }
 
 int cleanup_queuebox() {
@@ -159,8 +171,16 @@ int cleanup_queuebox() {
 
   pthread_mutex_lock(&queuebox_lock);
   {
+    struct queue *queue, *q;
+
     for(i=0; i<QB_SIZE; i++) {
-      clear_queue(queuebox[i]);
+      if(queuebox[i] == NULL || list_empty(queuebox[i])) {
+        continue;
+      }
+
+      list_for_each_entry_safe(queue, q, queuebox[i], l_box) {
+        clear_queue(queue);
+      }
     }
   }
   pthread_mutex_unlock(&queuebox_lock);

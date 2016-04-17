@@ -5,7 +5,7 @@
 
 #include <stdlib.h>
 
-#define DATALEN 1000
+#define DATALEN 10000
 #define QNAMELEN 128
 
 struct test_data {
@@ -62,8 +62,7 @@ static void check_dequeue(void) {
     data = &data_arr[i];
 
     get_data = (struct test_data *)dequeue(data->qname);
-
-    if(get_data->value != data->value || strcmp(get_data->qname, data->qname) != 0) {
+    if(get_data != data) {
       ret = RET_ERROR;
       break;
     }
