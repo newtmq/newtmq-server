@@ -1,6 +1,7 @@
 #include <kazusa/list.h>
 #include <kazusa/stomp.h>
 #include <kazusa/common.h>
+#include <kazusa/logger.h>
 
 #include <assert.h>
 
@@ -35,7 +36,7 @@ frame_t *handler_stomp_send(frame_t *frame) {
   assert(frame->cinfo != NULL);
 
   if(iterate_header(&frame->h_attrs, handlers, &sendinfo) == RET_ERROR) {
-    printf("[ERROR] (handle_stomp_send) validation error\n");
+    logger(LOG_ERROR, "(handle_stomp_send) validation error");
     stomp_send_error(frame->sock, "failed to validate header\n");
     return NULL;
   }
@@ -45,7 +46,7 @@ frame_t *handler_stomp_send(frame_t *frame) {
     return NULL;
   }
 
-  printf("[debug] (handle_stomp_send) store data to queue ('%s')\n", sendinfo.qname);
+  logger(LOG_DEBUG, "(handle_stomp_send) store data to queue ('%s')", sendinfo.qname);
 
   enqueue((void *)&frame->h_data, sendinfo.qname);
 

@@ -1,6 +1,7 @@
 #include <kazusa/stomp.h>
 #include <kazusa/common.h>
 #include <kazusa/signal.h>
+#include <kazusa/logger.h>
 
 #include <string.h>
 
@@ -123,7 +124,7 @@ static int frame_setdata(char *data, int len, struct list_head *head) {
 
   attr = (linedata_t *)malloc(sizeof(linedata_t));
   if(attr == NULL) {
-    printf("[warning] failed to allocate linedata_t\n");
+    logger(LOG_WARN, "failed to allocate linedata_t");
     return RET_ERROR;
   }
   memset(attr->data, 0, LD_MAX);
@@ -154,7 +155,7 @@ static void frame_create_finish(frame_t *frame) {
   CLR(frame);
   SET(frame, STATUS_IN_BUCKET);
 
-  printf("[debug] (frame_create_finish) %s\n", frame->name);
+  logger(LOG_DEBUG, "(frame_create_finish) %s", frame->name);
 
   pthread_mutex_lock(&stomp_frame_bucket.mutex);
   { /* thread safe */
@@ -169,7 +170,7 @@ static int making_frame(char *recv_data, int len, frame_t *frame) {
   for(p=recv_data; line=strtok_single(p, "\n"); p += strlen(line) + 1) {
     int attrlen = strlen(line);
 
-    printf("[debug] (making_frame) >> %s\n", line);
+    logger(LOG_DEBUG, "(making_frame) >> %s", line);
 
     if(not_bl(line)) {
       if(GET(frame, STATUS_BORN)) {
@@ -353,7 +354,7 @@ void *stomp_management_worker(void *data) {
   while(1) {
     frame = get_frame_from_bucket();
     if(frame != NULL) {
-      printf("[debug] (stomp_management_worker) frame_name: %s\n", frame->name);
+      logger(LOG_DEBUG, "[debug] (stomp_management_worker) frame_name: %s", frame->name);
       handle_frame(frame);
 
       free_frame_without_data(frame);

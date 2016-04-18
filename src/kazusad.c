@@ -2,6 +2,7 @@
 #include <kazusa/optparse.h>
 #include <kazusa/config.h>
 #include <kazusa/daemon.h>
+#include <kazusa/logger.h>
 
 #include <stdlib.h>
 
@@ -16,7 +17,7 @@ int main(int argc, char **argv) {
   // parse command-line arguments
   parse_opt(argc, argv, &args);
   if(args.config_path == NULL) {
-    printf("[ERROR] failed to load configuration file");
+    perror("failed to load configuration file");
     exit(1);
   }
 
@@ -24,6 +25,10 @@ int main(int argc, char **argv) {
   if(ret == RET_ERROR) {
     perror("failed to load configuration file");
     exit(1);
+  }
+
+  if(config.loglevel != NULL) {
+    set_logger(config.loglevel);
   }
 
   if(daemon_initialize() == RET_ERROR) {

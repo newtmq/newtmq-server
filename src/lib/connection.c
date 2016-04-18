@@ -52,8 +52,6 @@ static void *connection_co_worker(void *data) {
     cinfo.sock = *sock;
     cinfo.data = (void *)stomp_conn_init();
 
-    printf("[debug] (connection_co_worker) cinfo.data > %p\n", cinfo.data);
-
     /* initialize processing after established connection */
     handler = set_signal_handler(cleanup_co_worker, &cinfo);
   
@@ -66,7 +64,6 @@ static void *connection_co_worker(void *data) {
     }
 
     stomp_conn_finish(cinfo.data);
-    printf("[debug] (connection_co_worker) finished\n");
 
     del_signal_handler(handler);
 

@@ -18,6 +18,8 @@ static void test_load_config(void) {
 
   load_config(confpath, &config);
 
+  CU_ASSERT(config.loglevel == NULL);
+
   // check whether specified parameter is set.
   CU_ASSERT(strcmp(config.server, "testnode") == 0);
 

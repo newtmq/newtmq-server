@@ -1,6 +1,7 @@
 #include <kazusa/list.h>
 #include <kazusa/stomp.h>
 #include <kazusa/common.h>
+#include <kazusa/logger.h>
 
 #include <string.h>
 #include <assert.h>
@@ -65,8 +66,8 @@ frame_t *handler_stomp_connect(frame_t *frame) {
   SET(frame->cinfo, STATE_CONNECTED);
 
   /* XXX: needs authentication and authorization processing */
-  printf("[debug] (handler_stomp_connect) userid: %s\n", auth.userid);
-  printf("[debug] (handler_stomp_connect) passwd: %s\n", auth.passwd);
+  logger(LOG_DEBUG, "(handler_stomp_connect) userid: %s", auth.userid);
+  logger(LOG_DEBUG, "(handler_stomp_connect) passwd: %s", auth.passwd);
 
   send_connected_msg(frame->sock);
 

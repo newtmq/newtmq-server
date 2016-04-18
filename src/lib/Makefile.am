@@ -5,6 +5,7 @@ lib_kazusa_a_SOURCES = optparse.c \
 											 signal.c \
 											 queue.c \
 											 daemon.c \
+											 logger.c \
 											 connection.c \
 											 stomp_connect.c \
 											 stomp_send.c \
