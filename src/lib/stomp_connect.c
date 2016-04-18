@@ -30,7 +30,7 @@ static int handler_passcode(char *context, void *data) {
   return RET_SUCCESS;
 }
 
-stomp_header_handler_t handlers[] = {
+static stomp_header_handler_t handlers[] = {
   {"login:", handler_login},
   {"passcode:", handler_passcode},
   {0},

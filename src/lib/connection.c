@@ -65,6 +65,9 @@ static void *connection_co_worker(void *data) {
       stomp_recv_data(buf, strlen(buf), *sock, cinfo.data);
     }
 
+    stomp_conn_finish(cinfo.data);
+    printf("[debug] (connection_co_worker) finished\n");
+
     del_signal_handler(handler);
 
     close(*sock);
@@ -121,7 +124,6 @@ int send_msg(int sock, char **msg) {
 
   for(i=0; (line = msg[i])!=NULL; i++) {
     if(send(sock, line, strlen(line), 0) < 0) {
-      printf("[ERROR] failed to send message [%s]\n", line);
       return RET_ERROR;
     }
   }

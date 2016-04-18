@@ -64,6 +64,7 @@ struct stomp_conninfo_t {
 /* These functions are implemented in stomp_driver.c */
 int stomp_init();
 stomp_conninfo_t *stomp_conn_init();
+int stomp_conn_finish(void *);
 int stomp_recv_data(char *, int, int, void *);
 
 /* For registering a worker which dedicate to process STOMP frames */
@@ -71,6 +72,7 @@ void *stomp_management_worker(void *data);
 
 /* processing handlers for each STOMP protocol frames */
 frame_t *handler_stomp_connect(frame_t *);
+frame_t *handler_stomp_send(frame_t *);
 
 int iterate_header(struct list_head *, stomp_header_handler_t *, void *);
 

@@ -4,6 +4,8 @@
 
 #include <string.h>
 
+#define DELETE_FRAME_WITH_DATA (1 << 0)
+
 typedef struct stomp_handler_t {
   char *name;
   frame_t *(*handler)(frame_t *);
@@ -13,9 +15,10 @@ typedef struct stomp_handler_t {
 frame_bucket_t stomp_frame_bucket;
 
 static stomp_handler_t stomp_handlers[] = {
-  {"SEND", NULL}, // not implemented yet
+  {"SEND", handler_stomp_send},
   {"SUBSCRIBE", NULL}, // not implemented yet
   {"CONNECT", handler_stomp_connect},
+  {"STOMP", handler_stomp_connect},
   {"DISCONNECT", NULL}, // not implemented yet
   {"UNSUBSCRIBE", NULL}, // not implemented yet
   {"BEGIN", NULL}, // not implemented yet
@@ -71,14 +74,18 @@ static frame_t *alloc_frame() {
   return ret;
 }
 
-static void free_frame(frame_t *frame) {
+static void do_free_frame(frame_t *frame, int flag) {
   linedata_t *data;
 
+  /* delete header */
   list_for_each_entry(data, &frame->h_attrs, l_frame) {
     free(data);
   }
-  list_for_each_entry(data, &frame->h_data, l_frame) {
-    free(data);
+
+  if((flag & DELETE_FRAME_WITH_DATA) > 0) {
+    list_for_each_entry(data, &frame->h_data, l_frame) {
+      free(data);
+    }
   }
 
   if(frame->l_bucket.next != NULL && frame->l_bucket.prev != NULL) {
@@ -86,6 +93,12 @@ static void free_frame(frame_t *frame) {
   }
 
   free(frame);
+}
+static void free_frame(frame_t *frame) {
+  do_free_frame(frame, DELETE_FRAME_WITH_DATA);
+}
+static void free_frame_without_data(frame_t *frame) {
+  do_free_frame(frame, 0);
 }
 
 static void frame_setname(char *data, int len, frame_t *frame) {
@@ -141,6 +154,8 @@ static void frame_create_finish(frame_t *frame) {
   CLR(frame);
   SET(frame, STATUS_IN_BUCKET);
 
+  printf("[debug] (frame_create_finish) %s\n", frame->name);
+
   pthread_mutex_lock(&stomp_frame_bucket.mutex);
   { /* thread safe */
     list_add_tail(&frame->l_bucket, &stomp_frame_bucket.h_frame);
@@ -153,6 +168,8 @@ static int making_frame(char *recv_data, int len, frame_t *frame) {
 
   for(p=recv_data; line=strtok_single(p, "\n"); p += strlen(line) + 1) {
     int attrlen = strlen(line);
+
+    printf("[debug] (making_frame) >> %s\n", line);
 
     if(not_bl(line)) {
       if(GET(frame, STATUS_BORN)) {
@@ -218,6 +235,23 @@ stomp_conninfo_t *stomp_conn_init() {
     /* intiialize params */
     ret->status = 0;
     SET(ret, STATE_INIT);
+  }
+
+  return ret;
+}
+
+int stomp_conn_finish(void *data) {
+  stomp_conninfo_t *cinfo = (stomp_conninfo_t *)data;
+  int ret = RET_ERROR;
+
+  if(cinfo != NULL) {
+    frame_t *frame = cinfo->frame;
+
+    if(frame != NULL && (GET(frame, STATUS_INPUT_BODY) || GET(frame, STATUS_INPUT_NAME))) {
+      frame_create_finish(frame);
+
+      ret = RET_SUCCESS;
+    }
   }
 
   return ret;
@@ -319,9 +353,10 @@ void *stomp_management_worker(void *data) {
   while(1) {
     frame = get_frame_from_bucket();
     if(frame != NULL) {
+      printf("[debug] (stomp_management_worker) frame_name: %s\n", frame->name);
       handle_frame(frame);
 
-      free_frame(frame);
+      free_frame_without_data(frame);
     }
   }
 
