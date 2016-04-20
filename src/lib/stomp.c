@@ -3,58 +3,12 @@
 #include <kazusa/signal.h>
 #include <kazusa/logger.h>
 
-#include <string.h>
+#include <kazusa/stomp_management_worker.h>
+#include <kazusa/stomp_message_worker.h>
 
-#define DELETE_FRAME_WITH_DATA (1 << 0)
-
-typedef struct stomp_handler_t {
-  char *name;
-  frame_t *(*handler)(frame_t *);
-} stomp_handler_t;
-
-/* This object is accessed globally */
 frame_bucket_t stomp_frame_bucket;
 
-static stomp_handler_t stomp_handlers[] = {
-  {"SEND", handler_stomp_send},
-  {"SUBSCRIBE", NULL}, // not implemented yet
-  {"CONNECT", handler_stomp_connect},
-  {"STOMP", handler_stomp_connect},
-  {"DISCONNECT", NULL}, // not implemented yet
-  {"UNSUBSCRIBE", NULL}, // not implemented yet
-  {"BEGIN", NULL}, // not implemented yet
-  {"COMMIT", NULL}, // not implemented yet
-  {"ABORT", NULL}, // not implemented yet
-  {"ACK", NULL}, // not implemented yet
-  {"NACK", NULL}, // not implemented yet
-  {0},
-};
-
-static char *strtok_single(char * str, char const * delims) {
-  static char  * src = NULL;
-  char  *  p,  * ret = 0;
-
-  if(str != NULL){
-    src = str;
-  }
-
-  if(src == NULL){
-    return NULL;
-  }
-
-  if((p = strpbrk (src, delims)) != NULL){
-    *p  = 0;
-    ret = src;
-    src = ++p;
-  }else if (*src){
-    ret = src;
-    src = NULL;
-  }
-
-  return ret;
-}
-
-static frame_t *alloc_frame() {
+frame_t *alloc_frame() {
   frame_t *ret;
 
   ret = (frame_t *)malloc(sizeof(frame_t));
@@ -75,7 +29,7 @@ static frame_t *alloc_frame() {
   return ret;
 }
 
-static void do_free_frame(frame_t *frame, int flag) {
+void free_frame(frame_t *frame) {
   linedata_t *data;
 
   /* delete header */
@@ -83,10 +37,9 @@ static void do_free_frame(frame_t *frame, int flag) {
     free(data);
   }
 
-  if((flag & DELETE_FRAME_WITH_DATA) > 0) {
-    list_for_each_entry(data, &frame->h_data, l_frame) {
-      free(data);
-    }
+  /* delete body */
+  list_for_each_entry(data, &frame->h_data, l_frame) {
+    free(data);
   }
 
   if(frame->l_bucket.next != NULL && frame->l_bucket.prev != NULL) {
@@ -95,20 +48,16 @@ static void do_free_frame(frame_t *frame, int flag) {
 
   free(frame);
 }
-static void free_frame(frame_t *frame) {
-  do_free_frame(frame, DELETE_FRAME_WITH_DATA);
-}
-static void free_frame_without_data(frame_t *frame) {
-  do_free_frame(frame, 0);
-}
 
 static void frame_setname(char *data, int len, frame_t *frame) {
   int namelen = len;
 
+  logger(LOG_DEBUG, "(frame_setname) name: %s [%d]", data, len);
+
   if(namelen > FNAME_LEN) {
     namelen = FNAME_LEN;
   }
-  memcpy(frame->name, data, len);
+  memcpy(frame->name, data, namelen);
 
   CLR(frame);
   SET(frame, STATUS_INPUT_NAME);
@@ -127,8 +76,8 @@ static int frame_setdata(char *data, int len, struct list_head *head) {
     logger(LOG_WARN, "failed to allocate linedata_t");
     return RET_ERROR;
   }
-  memset(attr->data, 0, LD_MAX);
-  memcpy(attr->data, data, len);
+  memcpy(attr->data, data, attrlen);
+  INIT_LIST_HEAD(&attr->l_frame);
 
   list_add_tail(&attr->l_frame, head);
 
@@ -223,6 +172,8 @@ int stomp_init() {
 
   set_signal_handler(cleanup, NULL);
 
+  stomp_message_worker_init();
+
   return RET_SUCCESS;
 }
 
@@ -261,9 +212,11 @@ int stomp_conn_finish(void *data) {
 int stomp_recv_data(char *recv_data, int len, int sock, void *_cinfo) {
   stomp_conninfo_t *cinfo = (stomp_conninfo_t *)_cinfo;
 
-  if(cinfo == NULL) {
+  if(cinfo == NULL || (cinfo->frame == NULL && len == 0)) {
     return RET_ERROR;
   }
+
+  logger(LOG_DEBUG, "(stomp_recv_data) %s [%d]", recv_data, len);
 
   if(cinfo->frame == NULL) {
     /* ignore no meaning blank input */
@@ -301,7 +254,7 @@ int stomp_recv_data(char *recv_data, int len, int sock, void *_cinfo) {
   return RET_SUCCESS;
 }
 
-static frame_t *get_frame_from_bucket() {
+frame_t *get_frame_from_bucket() {
   frame_t *frame = NULL;
 
   pthread_mutex_lock(&stomp_frame_bucket.mutex);
@@ -316,55 +269,8 @@ static frame_t *get_frame_from_bucket() {
   return frame;
 }
 
-int iterate_header(struct list_head *h_header, stomp_header_handler_t *handlers, void *data) {
-  linedata_t *line;
-
-  list_for_each_entry(line, h_header, l_frame) {
-    stomp_header_handler_t *h;
-    int i;
-
-    for(i=0; h=&handlers[i], h->name!=NULL; i++) {
-      if(strncmp(line->data, h->name, strlen(h->name)) == 0) {
-        int ret = (*h->handler)((line->data + strlen(h->name)), data);
-        if(ret == RET_ERROR) {
-          return RET_ERROR;
-        }
-      }
-    }
-  }
-
-  return RET_SUCCESS;
-}
-
-static int handle_frame(frame_t *frame) {
-  int i;
-  stomp_handler_t *h;
-
-  for(i=0; h=&stomp_handlers[i], h->name!=NULL; i++) {
-    if(strncmp(frame->name, h->name, strlen(h->name)) == 0) {
-      (*h->handler)(frame);
-      break;
-    }
-  }
-}
-
-void *stomp_management_worker(void *data) {
-  frame_t *frame;
-
-  while(1) {
-    frame = get_frame_from_bucket();
-    if(frame != NULL) {
-      logger(LOG_DEBUG, "[debug] (stomp_management_worker) frame_name: %s", frame->name);
-      handle_frame(frame);
-
-      free_frame_without_data(frame);
-    }
-  }
-
-  return NULL;
-}
-
 void stomp_send_error(int sock, char *body) {
+  int i;
   char *msg[] = {
     "ERROR\n",
     "\n",
@@ -372,5 +278,8 @@ void stomp_send_error(int sock, char *body) {
     NULL,
   };
 
-  send_msg(sock, msg);
+  for(i=0; msg[i] != NULL; i++) {
+    send_msg(sock, msg[i]);
+  }
+  send_msg(sock, NULL);
 }

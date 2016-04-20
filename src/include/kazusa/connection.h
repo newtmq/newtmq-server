@@ -8,11 +8,8 @@
 #include <netinet/in.h>
 #include <kazusa/config.h>
 
-#define BUFSIZE 1024
-#define QUEUENUM 10
-
 void *get_connection_info();
 void *connection_worker(void *);
-int send_msg(int, char **);
+int send_msg(int, char *);
 
 #endif

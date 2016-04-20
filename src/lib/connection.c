@@ -6,11 +6,20 @@
 
 #include <pthread.h>
 
+#define BUFSIZE (1<<12)
+#define QUEUENUM 100
+
 /* This data structure is used only in the active connection
  * and exists one object per connection. */
 struct conninfo {
   int sock;
-  void *data;
+  void *protocol_data;
+  struct list_head h_buf;
+  pthread_mutex_t mutex;
+};
+struct bentry {
+  char data[BUFSIZE];
+  struct list_head list;
 };
 
 static int cleanup_co_worker(void *data) {
@@ -42,11 +51,38 @@ static int cleanup_connection(void *data) {
   return ret;
 }
 
+static void *data_handler(void *data) {
+  struct conninfo *cinfo = (struct conninfo *)data;
+  struct bentry *entry;
+
+  if(conninfo == NULL) {
+    return NULL;
+  }
+
+  while(1) {
+    pthread_mutex_lock(&queue->mutex);
+    {
+      if(! list_empty(&queue->h_data)) {
+        entry = list_first_entry(&queue->h_data, struct data_entry, list);
+        list_del(&entry->list);
+      }
+    }
+    pthread_mutex_unlock(&queue->mutex);
+
+    
+    stomp_recv_data(entry->buf, strlen(entry->buf), *sock, cinfo.data);
+  }
+}
+
 static void *connection_co_worker(void *data) {
   int *sock = (int *)data;
   char buf[BUFSIZE];
   sighandle_t *handler;
   struct conninfo cinfo = {0};
+
+  if(sock == NULL) {
+    return NULL;
+  }
 
   if(sock != NULL) {
     cinfo.sock = *sock;
@@ -57,7 +93,7 @@ static void *connection_co_worker(void *data) {
   
     while(1) {
       memset(buf, 0, BUFSIZE);
-      if(! read(*sock, buf, sizeof(buf))) {
+      if(read(*sock, buf, sizeof(buf)) < 0) {
         break;
       }
       stomp_recv_data(buf, strlen(buf), *sock, cinfo.data);
@@ -115,16 +151,14 @@ void *connection_worker(void *data) {
   return NULL;
 }
 
-int send_msg(int sock, char **msg) {
-  int i;
-  char *line;
+int send_msg(int sock, char *msg) {
+  int ret;
 
-  for(i=0; (line = msg[i])!=NULL; i++) {
-    if(send(sock, line, strlen(line), 0) < 0) {
-      return RET_ERROR;
-    }
+  if(msg != NULL) {
+    ret = send(sock, msg, strlen(msg), 0);
+  } else {
+    ret = send(sock, "\0", 1, 0);
   }
-  send(sock, "\0", 1, 0);
 
-  return RET_SUCCESS;
+  return ret;
 }

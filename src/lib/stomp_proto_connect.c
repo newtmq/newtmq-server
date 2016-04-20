@@ -38,6 +38,7 @@ static stomp_header_handler_t handlers[] = {
 };
 
 static int send_connected_msg(int sock) {
+  int i;
   char *msg[] = {
     "CONNECTED\n",
     "version:1.2\n",
@@ -46,7 +47,10 @@ static int send_connected_msg(int sock) {
     NULL,
   };
 
-  send_msg(sock, msg);
+  for(i=0; msg[i] != NULL; i++) {
+    send_msg(sock, msg[i]);
+  }
+  send_msg(sock, NULL);
 
   return RET_SUCCESS;
 }

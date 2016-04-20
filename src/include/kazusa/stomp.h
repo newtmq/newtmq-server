@@ -8,7 +8,7 @@
 #include <pthread.h>
 
 #define FNAME_LEN 64
-#define LD_MAX 256
+#define LD_MAX (1<<14)
 
 /* These values specify status of making frame */
 #define STATUS_BORN         (1 << 0)
@@ -50,16 +50,16 @@ typedef struct linedata_t {
   struct list_head l_frame;
 } linedata_t;
 
-typedef struct stomp_header_handler {
-  char *name;
-  int (*handler)(char *, void *);
-} stomp_header_handler_t;
-
 /* This is alive during connection is active */
 struct stomp_conninfo_t {
   int status;
   frame_t *frame;
 };
+
+typedef struct stomp_header_handler {
+  char *name;
+  int (*handler)(char *, void *);
+} stomp_header_handler_t;
 
 /* These functions are implemented in stomp_driver.c */
 int stomp_init();
@@ -67,15 +67,17 @@ stomp_conninfo_t *stomp_conn_init();
 int stomp_conn_finish(void *);
 int stomp_recv_data(char *, int, int, void *);
 
-/* For registering a worker which dedicate to process STOMP frames */
-void *stomp_management_worker(void *data);
+frame_t *alloc_frame();
+void free_frame(frame_t *);
+
+frame_t *get_frame_from_bucket();
 
 /* processing handlers for each STOMP protocol frames */
 frame_t *handler_stomp_connect(frame_t *);
 frame_t *handler_stomp_send(frame_t *);
+frame_t *handler_stomp_subscribe(frame_t *);
 
-int iterate_header(struct list_head *, stomp_header_handler_t *, void *);
-
+/* This is used over each STOMP handlers */
 void stomp_send_error(int, char *);
 
 #endif

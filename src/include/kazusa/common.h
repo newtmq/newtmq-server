@@ -9,4 +9,6 @@
 #define SET(obj, value) (obj->status |= value)
 #define CLR(obj) (obj->status = 0)
 
+char *strtok_single(char *, char const *);
+
 #endif

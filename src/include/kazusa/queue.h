@@ -2,6 +2,7 @@
 #define __QUEUE_H__
 
 #include <pthread.h>
+#include <kazusa/list.h>
 
 #define QB_SIZE 512
 

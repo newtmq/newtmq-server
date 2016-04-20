@@ -7,16 +7,16 @@
 
 #define QNAME_LENGTH (256)
 
-struct sendinfo_t {
+struct dstinfo_t {
   char *qname;
 };
 
 static int handler_destination(char *context, void *data) {
-  struct sendinfo_t *sendinfo = (struct sendinfo_t *)data;
+  struct dstinfo_t *dstinfo = (struct dstinfo_t *)data;
   int ret = RET_ERROR;
 
-  if(sendinfo != NULL) {
-    sendinfo->qname = context;
+  if(dstinfo != NULL) {
+    dstinfo->qname = context;
 
     ret = RET_SUCCESS;
   }
@@ -30,25 +30,25 @@ static stomp_header_handler_t handlers[] = {
 };
 
 frame_t *handler_stomp_send(frame_t *frame) {
-  struct sendinfo_t sendinfo = {0};
+  struct dstinfo_t dstinfo = {0};
 
   assert(frame != NULL);
   assert(frame->cinfo != NULL);
 
-  if(iterate_header(&frame->h_attrs, handlers, &sendinfo) == RET_ERROR) {
+  if(iterate_header(&frame->h_attrs, handlers, &dstinfo) == RET_ERROR) {
     logger(LOG_ERROR, "(handle_stomp_send) validation error");
     stomp_send_error(frame->sock, "failed to validate header\n");
     return NULL;
   }
 
-  if(sendinfo.qname == NULL) {
+  if(dstinfo.qname == NULL) {
     stomp_send_error(frame->sock, "no destination is specified\n");
     return NULL;
   }
 
-  logger(LOG_DEBUG, "(handle_stomp_send) store data to queue ('%s')", sendinfo.qname);
+  logger(LOG_DEBUG, "(handle_stomp_send) store data to queue ('%s')", dstinfo.qname);
 
-  enqueue((void *)&frame->h_data, sendinfo.qname);
+  enqueue((void *)frame, dstinfo.qname);
 
-  return NULL;
+  return frame;
 }

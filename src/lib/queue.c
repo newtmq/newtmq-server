@@ -163,7 +163,7 @@ void *dequeue(char *qname) {
   }
   pthread_mutex_unlock(&q->mutex);
 
-  return e->data;
+  return ret;
 }
 
 int cleanup_queuebox() {
