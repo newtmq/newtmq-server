@@ -9,6 +9,7 @@
 #define DEFAULT_LOG_LEVEL LOG_INFO
 
 void logger(int, char *, ...);
+void debug(char *, ...);
 int set_logger(char *);
 
 #endif

@@ -34,13 +34,13 @@ int set_logger(char *level) {
     return RET_ERROR;
   }
 
-  if(strcmp(level, "DEBUG")) {
+  if(strcmp(level, "DEBUG") == 0) {
     curr_level = LOG_DEBUG;
-  } else if(strcmp(level, "INFO")) {
+  } else if(strcmp(level, "INFO") == 0) {
     curr_level = LOG_INFO;
-  } else if(strcmp(level, "WARN")) {
+  } else if(strcmp(level, "WARN") == 0) {
     curr_level = LOG_WARN;
-  } else if(strcmp(level, "ERROR")) {
+  } else if(strcmp(level, "ERROR") == 0) {
     curr_level = LOG_ERROR;
   } else {
     ret = RET_ERROR;
@@ -69,4 +69,31 @@ void logger(int level, char *fmt, ...) {
     printf("\n");
     va_end(list);
   }
+}
+
+static void do_logger(int level, char *fmt, va_list list) {
+  time_t now;
+  struct tm *tminfo;
+  char timebuf[TIME_BUF_LEN];
+
+  if(level >= curr_level) {
+    show_loglevel(level);
+
+    time(&now);
+    tminfo = localtime(&now);
+    strftime(timebuf, TIME_BUF_LEN, "%Y/%m/%d %H:%M:%S", tminfo);
+
+    printf("%s > ", timebuf);
+
+    vprintf(fmt, list);
+    printf("\n");
+    va_end(list);
+  }
+}
+
+void debug(char *fmt, ...) {
+  va_list args;
+  va_start(args, fmt);
+  do_logger(LOG_DEBUG, fmt, args);
+  va_end(args);
 }

@@ -2,7 +2,6 @@ noinst_LIBRARIES = lib_kazusa.a
 lib_kazusa_a_CFLAGS  = -I../include $(CFLAGS)
 lib_kazusa_a_SOURCES = optparse.c \
 											 config.c \
-											 common.c \
 											 signal.c \
 											 queue.c \
 											 daemon.c \

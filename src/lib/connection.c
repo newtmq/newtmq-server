@@ -3,11 +3,12 @@
 #include <kazusa/stomp.h>
 #include <kazusa/signal.h>
 #include <kazusa/common.h>
+#include <kazusa/logger.h>
 
 #include <pthread.h>
 
-#define BUFSIZE (1<<12)
-#define QUEUENUM 100
+#define BUFSIZE (1<<20)
+#define QUEUENUM (1 << 10)
 
 /* This data structure is used only in the active connection
  * and exists one object per connection. */
@@ -29,8 +30,8 @@ static int cleanup_co_worker(void *data) {
   if(cinfo != NULL) {
     close(cinfo->sock);
 
-    if(cinfo->data != NULL) {
-      free(cinfo->data);
+    if(cinfo->protocol_data != NULL) {
+      free(cinfo->protocol_data);
     }
 
     ret = RET_SUCCESS;
@@ -51,60 +52,42 @@ static int cleanup_connection(void *data) {
   return ret;
 }
 
-static void *data_handler(void *data) {
-  struct conninfo *cinfo = (struct conninfo *)data;
-  struct bentry *entry;
+static void *connection_co_worker(void *data) {
+  struct conninfo cinfo = {0};
+  sighandle_t *handler;
+  char buf[BUFSIZE];
 
-  if(conninfo == NULL) {
+  if(data == NULL) {
     return NULL;
   }
+
+  pthread_mutex_init(&cinfo.mutex, NULL);
+  INIT_LIST_HEAD(&cinfo.h_buf);
+  cinfo.sock = *(int *)data;
+  cinfo.protocol_data = (void *)stomp_conn_init();
+
+  /* initialize processing after established connection */
+  handler = set_signal_handler(cleanup_co_worker, &cinfo);
 
   while(1) {
-    pthread_mutex_lock(&queue->mutex);
-    {
-      if(! list_empty(&queue->h_data)) {
-        entry = list_first_entry(&queue->h_data, struct data_entry, list);
-        list_del(&entry->list);
-      }
-    }
-    pthread_mutex_unlock(&queue->mutex);
+    struct bentry *entry;
+    int len;
 
-    
-    stomp_recv_data(entry->buf, strlen(entry->buf), *sock, cinfo.data);
-  }
-}
-
-static void *connection_co_worker(void *data) {
-  int *sock = (int *)data;
-  char buf[BUFSIZE];
-  sighandle_t *handler;
-  struct conninfo cinfo = {0};
-
-  if(sock == NULL) {
-    return NULL;
-  }
-
-  if(sock != NULL) {
-    cinfo.sock = *sock;
-    cinfo.data = (void *)stomp_conn_init();
-
-    /* initialize processing after established connection */
-    handler = set_signal_handler(cleanup_co_worker, &cinfo);
-  
-    while(1) {
-      memset(buf, 0, BUFSIZE);
-      if(read(*sock, buf, sizeof(buf)) < 0) {
-        break;
-      }
-      stomp_recv_data(buf, strlen(buf), *sock, cinfo.data);
+    memset(buf, 0, BUFSIZE);
+    len = recv(cinfo.sock, buf, sizeof(buf), 0);
+    if(! len) {
+      break;
     }
 
-    stomp_conn_finish(cinfo.data);
-
-    del_signal_handler(handler);
-
-    close(*sock);
+    stomp_recv_data(buf, len, cinfo.sock, cinfo.protocol_data);
   }
+
+  /* cancel to parse of the current frame */
+  stomp_conn_finish(cinfo.protocol_data);
+
+  del_signal_handler(handler);
+
+  close(cinfo.sock);
 
   return NULL;
 }

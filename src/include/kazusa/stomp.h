@@ -8,7 +8,7 @@
 #include <pthread.h>
 
 #define FNAME_LEN 64
-#define LD_MAX (1<<14)
+#define LD_MAX (4096)
 
 /* These values specify status of making frame */
 #define STATUS_BORN         (1 << 0)
@@ -22,7 +22,8 @@
 #define STATE_INIT (1 << 0)
 #define STATE_CONNECTED (1 << 1)
 
-#define not_bl(buf) (buf!=NULL && buf[0] != 0 && buf[0] != '\r' && buf[0] != '\n')
+#define IS_BL(buf) (buf != NULL && buf[0] == '\0')
+#define IS_NL(buf) (buf != NULL && (buf[0] == '\n' || buf[0] == '\r'))
 
 typedef struct stomp_conninfo_t stomp_conninfo_t;
 
@@ -54,6 +55,7 @@ typedef struct linedata_t {
 struct stomp_conninfo_t {
   int status;
   frame_t *frame;
+  char line_buf[LD_MAX];
 };
 
 typedef struct stomp_header_handler {

@@ -41,8 +41,6 @@ void free_msginfo(stomp_msginfo_t *msginfo) {
 int stomp_message_register(stomp_msginfo_t *info) {
   pthread_mutex_lock(&msgm.mutex);
   {
-    logger(LOG_DEBUG, "(stomp_message_register) &msgm.h_msg: %p", &msgm.h_msg);
-
     list_add(&info->list, &msgm.h_msg);
   }
   pthread_mutex_unlock(&msgm.mutex);
@@ -67,6 +65,7 @@ static int do_send_message_frames(stomp_msginfo_t *msginfo) {
     send_msg(msginfo->sock, "\n");
     list_for_each_entry(body, &frame->h_data, l_frame) {
       send_msg(msginfo->sock, body->data);
+      send_msg(msginfo->sock, "\n");
     }
     send_msg(msginfo->sock, NULL);
   }
