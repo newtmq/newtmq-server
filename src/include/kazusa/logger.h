@@ -8,8 +8,11 @@
 
 #define DEFAULT_LOG_LEVEL LOG_INFO
 
-void logger(int, char *, ...);
 void debug(char *, ...);
+void info(char *, ...);
+void warn(char *, ...);
+void err(char *, ...);
+
 int set_logger(char *);
 
 #endif

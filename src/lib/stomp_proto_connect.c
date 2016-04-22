@@ -70,8 +70,8 @@ frame_t *handler_stomp_connect(frame_t *frame) {
   SET(frame->cinfo, STATE_CONNECTED);
 
   /* XXX: needs authentication and authorization processing */
-  logger(LOG_DEBUG, "(handler_stomp_connect) userid: %s", auth.userid);
-  logger(LOG_DEBUG, "(handler_stomp_connect) passwd: %s", auth.passwd);
+  debug("(handler_stomp_connect) userid: %s", auth.userid);
+  debug("(handler_stomp_connect) passwd: %s", auth.passwd);
 
   send_connected_msg(frame->sock);
 

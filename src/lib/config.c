@@ -30,6 +30,7 @@ int load_config(char *confpath, kd_config *config) {
   config->server   = cfg_getstr(cfg, "server");
   config->port     = cfg_getint(cfg, "port");
   config->logfile  = cfg_getstr(cfg, "logfile");
+  config->loglevel = cfg_getstr(cfg, "loglevel");
   config->debug    = cfg_getbool(cfg, "debug");
 
   return RET_SUCCESS;

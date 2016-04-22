@@ -85,7 +85,7 @@ char *ssplit(char *str, char *end) {
 static void frame_setname(char *data, int len, frame_t *frame) {
   int namelen = len;
 
-  logger(LOG_DEBUG, "(frame_setname) name: %s [%d]", data, len);
+  debug("(frame_setname) name: %s [%d]", data, len);
 
   if(namelen > FNAME_LEN) {
     namelen = FNAME_LEN;
@@ -106,7 +106,7 @@ static int frame_setdata(char *data, int len, struct list_head *head) {
 
   attr = (linedata_t *)malloc(sizeof(linedata_t));
   if(attr == NULL) {
-    logger(LOG_WARN, "failed to allocate linedata_t");
+    warn("failed to allocate linedata_t");
     return RET_ERROR;
   }
 
@@ -141,7 +141,7 @@ static void frame_finish(frame_t *frame) {
   CLR(frame);
   SET(frame, STATUS_IN_BUCKET);
 
-  logger(LOG_DEBUG, "(frame_finish) %s", frame->name);
+  debug("(frame_finish) %s", frame->name);
 
   pthread_mutex_lock(&stomp_frame_bucket.mutex);
   { /* thread safe */
@@ -152,7 +152,7 @@ static void frame_finish(frame_t *frame) {
 
 static int frame_update(char *line, int len, frame_t *frame) {
 
-  logger(LOG_DEBUG, "(frame_update) >> %s [%d]", line, len);
+  debug("(frame_update) >> %s [%d]", line, len);
 
   if(IS_BL(line)) {
     if(GET(frame, STATUS_INPUT_NAME) || GET(frame, STATUS_INPUT_HEADER) || GET(frame, STATUS_INPUT_BODY) ) {
@@ -188,7 +188,7 @@ static int frame_update(char *line, int len, frame_t *frame) {
     } else if(GET(frame, STATUS_INPUT_HEADER)) {
       frame_setdata(line, len, &frame->h_attrs);
     } else if(GET(frame, STATUS_INPUT_BODY)) {
-      logger(LOG_DEBUG, "(frame_update) (setdata) >> %s [%d]", line, len);
+      debug("(frame_update) (setdata) >> %s [%d]", line, len);
       frame_setdata(line, len, &frame->h_data);
     }
   }
@@ -247,7 +247,7 @@ static int do_stomp_recv_data(char *line, int len, int sock, void *_cinfo) {
     return RET_ERROR;
   }
 
-  logger(LOG_DEBUG, "(do_stomp_recv_data) %s [%d]", line, len);
+  debug("(do_stomp_recv_data) %s [%d]", line, len);
 
   if(IS_BL(line) || IS_NL(line)) {
     if(frame_update(line, len, cinfo->frame) > 0) {
@@ -268,7 +268,7 @@ static int do_stomp_recv_data(char *line, int len, int sock, void *_cinfo) {
       }
 
       if(strncmp(line, finfo->name, finfo->len) == 0) {
-        logger(LOG_DEBUG, "(stomp_recv_data) <matched %s [%d]>", finfo->name, finfo->len);
+        debug("(stomp_recv_data) <matched %s [%d]>", finfo->name, finfo->len);
         frame_finish(cinfo->frame);
         cinfo->frame = NULL;
         break;
@@ -303,7 +303,7 @@ int stomp_recv_data(char *recv_data, int len, int sock, void *_cinfo) {
   stomp_conninfo_t *cinfo = (stomp_conninfo_t *)_cinfo;
   char *curr, *next, *end;
 
-  logger(LOG_DEBUG, "(stomp_recv_data) %s [%d]", recv_data, len);
+  debug("(stomp_recv_data) %s [%d]", recv_data, len);
 
   curr = recv_data;
   end = (recv_data + len);

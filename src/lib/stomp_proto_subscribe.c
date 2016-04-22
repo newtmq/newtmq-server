@@ -37,7 +37,7 @@ frame_t *handler_stomp_subscribe(frame_t *frame) {
   assert(frame->cinfo != NULL);
 
   if(iterate_header(&frame->h_attrs, handlers, &dstinfo) == RET_ERROR) {
-    logger(LOG_ERROR, "(handle_stomp_subscribe) validation error");
+    err("(handle_stomp_subscribe) validation error");
     stomp_send_error(frame->sock, "failed to validate header\n");
     return NULL;
   }
@@ -58,7 +58,7 @@ frame_t *handler_stomp_subscribe(frame_t *frame) {
     msginfo->sock = frame->sock;
     strncpy(msginfo->qname, dstinfo.qname, qname_len);
 
-    logger(LOG_DEBUG, "(handle_stomp_subscribe) message_register");
+    debug("(handle_stomp_subscribe) message_register");
 
     stomp_message_register(msginfo);
   }

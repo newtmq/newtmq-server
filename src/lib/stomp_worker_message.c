@@ -21,7 +21,7 @@ stomp_msginfo_t *alloc_msginfo() {
 
   ret = (stomp_msginfo_t *)malloc(sizeof(stomp_msginfo_t));
   if(ret == NULL) {
-    logger(LOG_ERROR, "[alloc_msginfo] failed to allocate memory");
+    err("[alloc_msginfo] failed to allocate memory");
     return NULL;
   }
 
@@ -72,7 +72,7 @@ static int do_send_message_frames(stomp_msginfo_t *msginfo) {
 }
 
 void *stomp_message_worker(void *data) {
-  logger(LOG_DEBUG, "[stomp_message_worker] started (&msgm.h_msg: %p)", &msgm.h_msg);
+  debug("[stomp_message_worker] started (&msgm.h_msg: %p)", &msgm.h_msg);
 
   while(1) {
     stomp_msginfo_t *msginfo;
@@ -93,5 +93,5 @@ void *stomp_message_worker(void *data) {
       pthread_yield();
     }
   }
-  logger(LOG_DEBUG, "[stomp_message_worker] finished");
+  debug("[stomp_message_worker] finished");
 }

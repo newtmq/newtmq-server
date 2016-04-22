@@ -49,28 +49,6 @@ int set_logger(char *level) {
   return ret;
 }
 
-void logger(int level, char *fmt, ...) {
-  va_list list;
-  time_t now;
-  struct tm *tminfo;
-  char timebuf[TIME_BUF_LEN];
-
-  if(level >= curr_level) {
-    show_loglevel(level);
-
-    time(&now);
-    tminfo = localtime(&now);
-    strftime(timebuf, TIME_BUF_LEN, "%Y/%m/%d %H:%M:%S", tminfo);
-
-    printf("%s > ", timebuf);
-
-    va_start(list, fmt);
-    vprintf(fmt, list);
-    printf("\n");
-    va_end(list);
-  }
-}
-
 static void do_logger(int level, char *fmt, va_list list) {
   time_t now;
   struct tm *tminfo;
@@ -95,5 +73,23 @@ void debug(char *fmt, ...) {
   va_list args;
   va_start(args, fmt);
   do_logger(LOG_DEBUG, fmt, args);
+  va_end(args);
+}
+void info(char *fmt, ...) {
+  va_list args;
+  va_start(args, fmt);
+  do_logger(LOG_INFO, fmt, args);
+  va_end(args);
+}
+void warn(char *fmt, ...) {
+  va_list args;
+  va_start(args, fmt);
+  do_logger(LOG_WARN, fmt, args);
+  va_end(args);
+}
+void err(char *fmt, ...) {
+  va_list args;
+  va_start(args, fmt);
+  do_logger(LOG_ERROR, fmt, args);
   va_end(args);
 }

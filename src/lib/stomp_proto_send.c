@@ -36,7 +36,7 @@ frame_t *handler_stomp_send(frame_t *frame) {
   assert(frame->cinfo != NULL);
 
   if(iterate_header(&frame->h_attrs, handlers, &dstinfo) == RET_ERROR) {
-    logger(LOG_ERROR, "(handle_stomp_send) validation error");
+    err("(handle_stomp_send) validation error");
     stomp_send_error(frame->sock, "failed to validate header\n");
     return NULL;
   }
@@ -46,7 +46,8 @@ frame_t *handler_stomp_send(frame_t *frame) {
     return NULL;
   }
 
-  logger(LOG_DEBUG, "(handle_stomp_send) store data to queue ('%s')", dstinfo.qname);
+  linedata_t *ldata = list_first_entry(&frame->h_data, linedata_t, l_frame);
+  debug("(handle_stomp_send) enqueued : %s", ldata->data);
 
   enqueue((void *)frame, dstinfo.qname);
 
