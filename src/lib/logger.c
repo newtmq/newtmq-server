@@ -4,11 +4,13 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <string.h>
+#include <pthread.h>
 #include <time.h>
 
 #define TIME_BUF_LEN 64
 
 static int curr_level = DEFAULT_LOG_LEVEL;
+static pthread_mutex_t log_mutex;
 
 static void show_loglevel(int level) {
   switch(level) {
@@ -46,6 +48,8 @@ int set_logger(char *level) {
     ret = RET_ERROR;
   }
 
+  pthread_mutex_init(&log_mutex, NULL);
+
   return ret;
 }
 
@@ -54,6 +58,7 @@ static void do_logger(int level, char *fmt, va_list list) {
   struct tm *tminfo;
   char timebuf[TIME_BUF_LEN];
 
+  pthread_mutex_lock(&log_mutex);
   if(level >= curr_level) {
     show_loglevel(level);
 
@@ -67,6 +72,7 @@ static void do_logger(int level, char *fmt, va_list list) {
     printf("\n");
     va_end(list);
   }
+  pthread_mutex_unlock(&log_mutex);
 }
 
 void debug(char *fmt, ...) {

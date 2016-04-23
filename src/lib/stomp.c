@@ -63,7 +63,7 @@ void free_frame(frame_t *frame) {
   }
 
   /* delete body */
-  if(! list_empty(&frame->h_attrs)) {
+  if(! list_empty(&frame->h_data)) {
     list_for_each_entry(data, &frame->h_data, l_frame) {
       free(data);
     }
@@ -90,8 +90,6 @@ char *ssplit(char *str, char *end) {
       char debug_buf[LD_MAX] = {0};
 
       memcpy(debug_buf, str, (int)(end - str));
-      warn("[ssplit] rest str: %s", debug_buf);
-
       return NULL;
     }
 
@@ -323,17 +321,13 @@ int stomp_recv_data(char *recv_data, int len, int sock, void *_cinfo) {
   stomp_conninfo_t *cinfo = (stomp_conninfo_t *)_cinfo;
   char *curr, *next, *end;
 
-  debug("(stomp_recv_data) %s [%d]", recv_data, len);
-
   curr = recv_data;
-  end = (recv_data + len);
-  while(curr < end) {
+  end = (recv_data + len - 1);
+  while(curr <= end) {
     int line_len;
     int line_prefix = 0;
 
     if(cinfo->remained_data != NULL) {
-      debug("(stomp_recv_data) remained_data: %s [%d]", cinfo->remained_data, cinfo->remained_size);
-
       memcpy(cinfo->line_buf, cinfo->remained_data, cinfo->remained_size);
       free(cinfo->remained_data);
 
@@ -343,7 +337,7 @@ int stomp_recv_data(char *recv_data, int len, int sock, void *_cinfo) {
 
     next = ssplit(curr, end);
     if(next == NULL) {
-      int remained_size = (int)(end - curr);
+      int remained_size = (int)(end - curr) + 1;
       char *remained_data = (char *)malloc(remained_size);
 
       if(remained_data != NULL) {
@@ -364,6 +358,8 @@ int stomp_recv_data(char *recv_data, int len, int sock, void *_cinfo) {
     if(line_len > 0) {
       memcpy((cinfo->line_buf + line_prefix), curr, line_len);
       cinfo->line_buf[line_len + line_prefix] = '\0';
+    } else if(line_prefix > 0) {
+      cinfo->line_buf[line_prefix] = '\0';
     } else {
       cinfo->line_buf[0] = *curr;
       cinfo->line_buf[1] = '\0';
@@ -400,6 +396,8 @@ void stomp_send_error(int sock, char *body) {
     body,
     NULL,
   };
+
+  warn("(stomp_send_error) body: %s", body);
 
   for(i=0; msg[i] != NULL; i++) {
     send_msg(sock, msg[i]);

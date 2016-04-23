@@ -5,7 +5,7 @@ Makefile
 *.in
 *.a
 *.o
-*.swp
+*.sw*
 aclocal.m4
 autom4te.cache/
 compile

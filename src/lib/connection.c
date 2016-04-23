@@ -7,7 +7,7 @@
 
 #include <pthread.h>
 
-#define RECV_BUFSIZE (8192)
+#define RECV_BUFSIZE (4096)
 #define QUEUENUM (1 << 10)
 
 /* This data structure is used only in the active connection
