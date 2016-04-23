@@ -8,7 +8,7 @@
 #include <pthread.h>
 
 #define FNAME_LEN 64
-#define LD_MAX (4096)
+#define LD_MAX (8192)
 
 /* These values specify status of making frame */
 #define STATUS_BORN         (1 << 0)
@@ -56,6 +56,8 @@ struct stomp_conninfo_t {
   int status;
   frame_t *frame;
   char line_buf[LD_MAX];
+  char *remained_data;
+  int remained_size;
 };
 
 typedef struct stomp_header_handler {

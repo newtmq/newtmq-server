@@ -7,7 +7,7 @@
 
 #include <pthread.h>
 
-#define BUFSIZE (1<<20)
+#define RECV_BUFSIZE (8192)
 #define QUEUENUM (1 << 10)
 
 /* This data structure is used only in the active connection
@@ -17,10 +17,6 @@ struct conninfo {
   void *protocol_data;
   struct list_head h_buf;
   pthread_mutex_t mutex;
-};
-struct bentry {
-  char data[BUFSIZE];
-  struct list_head list;
 };
 
 static int cleanup_co_worker(void *data) {
@@ -55,7 +51,7 @@ static int cleanup_connection(void *data) {
 static void *connection_co_worker(void *data) {
   struct conninfo cinfo = {0};
   sighandle_t *handler;
-  char buf[BUFSIZE];
+  char buf[RECV_BUFSIZE];
 
   if(data == NULL) {
     return NULL;
@@ -70,10 +66,9 @@ static void *connection_co_worker(void *data) {
   handler = set_signal_handler(cleanup_co_worker, &cinfo);
 
   while(1) {
-    struct bentry *entry;
     int len;
 
-    memset(buf, 0, BUFSIZE);
+    memset(buf, 0, RECV_BUFSIZE);
     len = recv(cinfo.sock, buf, sizeof(buf), 0);
     if(! len) {
       break;
@@ -130,6 +125,8 @@ void *connection_worker(void *data) {
 
     pthread_create(&thread_id, NULL, &connection_co_worker, &acc_sd);
   }
+
+  info("(connection_worker) finished");
  
   return NULL;
 }

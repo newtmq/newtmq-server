@@ -6,6 +6,8 @@
 #include <kazusa/stomp_management_worker.h>
 #include <kazusa/stomp_message_worker.h>
 
+#include <assert.h>
+
 struct stomp_frame_info {
   char *name;
   int len;
@@ -30,6 +32,8 @@ frame_bucket_t stomp_frame_bucket;
 frame_t *alloc_frame() {
   frame_t *ret;
 
+  debug("(alloc_frame)");
+
   ret = (frame_t *)malloc(sizeof(frame_t));
   if(ret == NULL) {
     return NULL;
@@ -52,18 +56,26 @@ void free_frame(frame_t *frame) {
   linedata_t *data;
 
   /* delete header */
-  list_for_each_entry(data, &frame->h_attrs, l_frame) {
-    free(data);
+  if(! list_empty(&frame->h_attrs)) {
+    list_for_each_entry(data, &frame->h_attrs, l_frame) {
+      free(data);
+    }
   }
 
   /* delete body */
-  list_for_each_entry(data, &frame->h_data, l_frame) {
-    free(data);
+  if(! list_empty(&frame->h_attrs)) {
+    list_for_each_entry(data, &frame->h_data, l_frame) {
+      free(data);
+    }
   }
 
-  if(frame->l_bucket.next != NULL && frame->l_bucket.prev != NULL) {
-    list_del(&frame->l_bucket);
+  pthread_mutex_lock(&stomp_frame_bucket.mutex);
+  {
+    if(frame->l_bucket.next != NULL && frame->l_bucket.prev != NULL) {
+      list_del(&frame->l_bucket);
+    }
   }
+  pthread_mutex_unlock(&stomp_frame_bucket.mutex);
 
   free(frame);
 }
@@ -71,11 +83,18 @@ void free_frame(frame_t *frame) {
 char *ssplit(char *str, char *end) {
   char *curr = str;
 
-  if(curr == NULL) {
-    return NULL;
-  }
+  assert(curr != NULL);
 
-  while(! (*curr == '\n' || *curr == '\0') && curr < end) {
+  while(! (*curr == '\n' || *curr == '\0')) {
+    if(curr >= end) {
+      char debug_buf[LD_MAX] = {0};
+
+      memcpy(debug_buf, str, (int)(end - str));
+      warn("[ssplit] rest str: %s", debug_buf);
+
+      return NULL;
+    }
+
     curr++;
   }
 
@@ -216,6 +235,7 @@ stomp_conninfo_t *stomp_conn_init() {
 
     /* intiialize params */
     ret->status = 0;
+    ret->remained_data = NULL;
     SET(ret, STATE_INIT);
     memset(ret->line_buf, 0, LD_MAX);
   }
@@ -308,26 +328,53 @@ int stomp_recv_data(char *recv_data, int len, int sock, void *_cinfo) {
   curr = recv_data;
   end = (recv_data + len);
   while(curr < end) {
-    int linelen;
+    int line_len;
+    int line_prefix = 0;
 
-    next = ssplit(curr, end);
-    linelen = (int)(next - curr);
-    if(linelen > LD_MAX) {
-      linelen = LD_MAX;
+    if(cinfo->remained_data != NULL) {
+      debug("(stomp_recv_data) remained_data: %s [%d]", cinfo->remained_data, cinfo->remained_size);
+
+      memcpy(cinfo->line_buf, cinfo->remained_data, cinfo->remained_size);
+      free(cinfo->remained_data);
+
+      cinfo->remained_data = NULL;
+      line_prefix = cinfo->remained_size;
     }
 
-    if(linelen > 0) {
-      memcpy(cinfo->line_buf, curr, linelen);
-      cinfo->line_buf[linelen] = '\0';
+    next = ssplit(curr, end);
+    if(next == NULL) {
+      int remained_size = (int)(end - curr);
+      char *remained_data = (char *)malloc(remained_size);
+
+      if(remained_data != NULL) {
+        memcpy(remained_data, curr, remained_size);
+
+        cinfo->remained_data = remained_data;
+        cinfo->remained_size = remained_size;
+      }
+
+      break;
+    }
+
+    line_len = (int)(next - curr);
+    if(line_len > LD_MAX) {
+      line_len = LD_MAX;
+    }
+
+    if(line_len > 0) {
+      memcpy((cinfo->line_buf + line_prefix), curr, line_len);
+      cinfo->line_buf[line_len + line_prefix] = '\0';
     } else {
       cinfo->line_buf[0] = *curr;
       cinfo->line_buf[1] = '\0';
     }
 
-    do_stomp_recv_data(cinfo->line_buf, linelen, sock, _cinfo);
+    do_stomp_recv_data(cinfo->line_buf, line_len + line_prefix, sock, _cinfo);
 
     curr = next + 1;
   }
+
+  return RET_SUCCESS;
 }
 
 frame_t *get_frame_from_bucket() {
