@@ -11,5 +11,6 @@
 void *get_connection_info();
 void *connection_worker(void *);
 int send_msg(int, char *);
+int is_socket_valid(int);
 
 #endif

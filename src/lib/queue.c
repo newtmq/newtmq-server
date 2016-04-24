@@ -149,7 +149,7 @@ void *dequeue(char *qname) {
 
   q = get_queue(qname);
   if(q == NULL) {
-    return RET_ERROR;
+    return NULL;
   }
 
   pthread_mutex_lock(&q->mutex);

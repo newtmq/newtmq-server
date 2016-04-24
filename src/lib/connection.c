@@ -5,6 +5,9 @@
 #include <kazusa/common.h>
 #include <kazusa/logger.h>
 
+#include <sys/types.h>
+#include <sys/socket.h>
+
 #include <pthread.h>
 
 #define RECV_BUFSIZE (4096)
@@ -141,4 +144,16 @@ int send_msg(int sock, char *msg) {
   }
 
   return ret;
+}
+
+int is_socket_valid(int sock) {
+  int error = 0;
+  socklen_t len = sizeof (error);
+  int retval = getsockopt(sock, SOL_SOCKET, SO_ERROR, &error, &len);
+
+  if (retval != 0 || error != 0) {
+    return RET_ERROR;
+  }
+
+  return RET_SUCCESS;
 }

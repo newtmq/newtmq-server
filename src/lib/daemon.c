@@ -3,14 +3,12 @@
 #include <kazusa/connection.h>
 #include <kazusa/stomp.h>
 #include <kazusa/stomp_management_worker.h>
-#include <kazusa/stomp_message_worker.h>
 
 #include <pthread.h>
 
 enum ThreadWorkerName {
   CONNECTION_WORKER,
   STOMP_MANAGEMENT_WORKER,
-  STOMP_MESSAGE_WORKER,
   WorkerLength,
 };
 
@@ -34,7 +32,6 @@ int daemon_start(kd_config config) {
   thread_info_t workers[] = {
     {connection_worker, &config},
     {stomp_management_worker, NULL},
-    {stomp_message_worker, NULL},
   };
   int i;
 

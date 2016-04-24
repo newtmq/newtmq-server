@@ -11,5 +11,4 @@ lib_kazusa_a_SOURCES = optparse.c \
 											 stomp_proto_connect.c \
 											 stomp_proto_subscribe.c \
 											 stomp_worker_management.c \
-											 stomp_worker_message.c \
 											 stomp.c

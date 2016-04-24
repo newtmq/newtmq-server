@@ -4,7 +4,6 @@
 #include <kazusa/logger.h>
 
 #include <kazusa/stomp_management_worker.h>
-#include <kazusa/stomp_message_worker.h>
 
 #include <assert.h>
 
@@ -219,8 +218,6 @@ int stomp_init() {
 
   set_signal_handler(cleanup, NULL);
 
-  stomp_message_worker_init();
-
   return RET_SUCCESS;
 }
 
@@ -399,8 +396,10 @@ void stomp_send_error(int sock, char *body) {
 
   warn("(stomp_send_error) body: %s", body);
 
-  for(i=0; msg[i] != NULL; i++) {
-    send_msg(sock, msg[i]);
+  if(is_socket_valid(sock) == RET_SUCCESS) {
+    for(i=0; msg[i] != NULL; i++) {
+      send_msg(sock, msg[i]);
+    }
+    send_msg(sock, NULL);
   }
-  send_msg(sock, NULL);
 }
