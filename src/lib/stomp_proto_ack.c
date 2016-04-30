@@ -1,0 +1,46 @@
+#include <kazusa/common.h>
+
+#include <kazusa/stomp_management_worker.h>
+
+static int handle_id(char *context, void *data) {
+  stomp_msginfo_t *msginfo = (stomp_msginfo_t *)data;
+  int ret = RET_ERROR;
+
+  if(msginfo != NULL) {
+    memcpy(msginfo->id, context, strlen(context));
+    SET(msginfo, SET_ID);
+
+    ret = RET_SUCCESS;
+  }
+
+  return ret;
+}
+
+static stomp_header_handler_t handlers[] = {
+  {"id:", handler_id},
+  {0},
+};
+
+frame_t *handler_stomp_ack(frame_t *frame) {
+  stomp_msginfo_t *msginfo;
+
+  assert(frame != NULL);
+  assert(frame->cinfo != NULL);
+
+  msginfo = alloc_msginfo();
+  if(msginfo == NULL) {
+    return NULL;
+  }
+
+  if(iterate_header(&frame->h_attrs, handlers, msginfo) == RET_ERROR) {
+    err("(handle_stomp_ack) validation error");
+    stomp_send_error(frame->sock, "failed to validate header\n");
+    return NULL;
+  }
+
+  /* implementation for ack */
+
+  free_msginfo(msginfo);
+
+  return NULL;
+}

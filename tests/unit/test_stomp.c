@@ -70,9 +70,10 @@ static void test_frame(void) {
 
 static void test_subscriber(void) {
   char id[] = "hoge";
+  pthread_t tid;
 
   CU_ASSERT(initialize_manager() == RET_SUCCESS);
-  CU_ASSERT(register_subscriber(id, NULL) == RET_SUCCESS);
+  CU_ASSERT(register_subscriber(id, tid) == RET_SUCCESS);
   CU_ASSERT(get_subscriber(id) != NULL);
   CU_ASSERT(unregister_subscriber(id) == RET_SUCCESS);
 }

@@ -49,7 +49,7 @@ int initialize_manager() {
   return RET_SUCCESS;
 }
 
-int register_subscriber(char *id, pthread_t *tid) {
+int register_subscriber(char *id, pthread_t tid) {
   subscribe_t *subscribe_info;
 
   if(id != NULL) {
@@ -101,19 +101,12 @@ int unregister_subscriber(char *id) {
 }
 
 subscribe_t *get_subscriber(char *id) {
-  subscribe_t *ret = NULL;
-
   if(id != NULL) {
-    pthread_mutex_lock(&management_info.mutex);
-    {
-      if(! list_empty(&management_info.h_subscribe)) {
-        ret = list_first_entry(&management_info.h_subscribe, subscribe_t, list);
-      }
+    if(! list_empty(&management_info.h_subscribe)) {
+      return list_first_entry(&management_info.h_subscribe, subscribe_t, list);
     }
-    pthread_mutex_unlock(&management_info.mutex);
   }
-
-  return ret;
+  return NULL;
 }
 
 int iterate_header(struct list_head *h_header, stomp_header_handler_t *handlers, void *data) {
@@ -151,4 +144,26 @@ void *stomp_management_worker(void *data) {
   }
 
   return NULL;
+}
+
+stomp_msginfo_t *alloc_msginfo() {
+  stomp_msginfo_t *ret;
+
+  ret = (stomp_msginfo_t *)malloc(sizeof(stomp_msginfo_t));
+  if(ret == NULL) {
+    err("[alloc_msginfo] failed to allocate memory");
+    return NULL;
+  }
+
+  /* Initialize object */
+  memset(ret, 0, sizeof(stomp_msginfo_t));
+  INIT_LIST_HEAD(&ret->list);
+
+  return ret;
+}
+
+void free_msginfo(stomp_msginfo_t *msginfo) {
+  if(msginfo != NULL) {
+    free(msginfo);
+  }
 }

@@ -4,16 +4,12 @@
 #include <kazusa/logger.h>
 #include <kazusa/queue.h>
 
+#include <kazusa/stomp_management_worker.h>
+
 #include <assert.h>
 
 #define SET_DESTINATION (1 << 0)
-
-typedef struct stomp_msginfo_t {
-  char qname[LD_MAX];
-  int sock;
-  struct list_head list;
-  int status;
-} stomp_msginfo_t;
+#define SET_ID          (1 << 1)
 
 static int handler_destination(char *context, void *data) {
   stomp_msginfo_t *msginfo = (stomp_msginfo_t *)data;
@@ -29,32 +25,25 @@ static int handler_destination(char *context, void *data) {
   return ret;
 }
 
-static stomp_header_handler_t handlers[] = {
-  {"destination:", handler_destination},
-  {0},
-};
+static int handler_id(char *context, void *data) {
+  stomp_msginfo_t *msginfo = (stomp_msginfo_t *)data;
+  int ret = RET_ERROR;
 
-stomp_msginfo_t *alloc_msginfo() {
-  stomp_msginfo_t *ret;
+  if(msginfo != NULL) {
+    memcpy(msginfo->id, context, strlen(context));
+    SET(msginfo, SET_ID);
 
-  ret = (stomp_msginfo_t *)malloc(sizeof(stomp_msginfo_t));
-  if(ret == NULL) {
-    err("[alloc_msginfo] failed to allocate memory");
-    return NULL;
+    ret = RET_SUCCESS;
   }
-
-  /* Initialize object */
-  memset(ret, 0, sizeof(stomp_msginfo_t));
-  INIT_LIST_HEAD(&ret->list);
 
   return ret;
 }
 
-void free_msginfo(stomp_msginfo_t *msginfo) {
-  if(msginfo != NULL) {
-    free(msginfo);
-  }
-}
+static stomp_header_handler_t handlers[] = {
+  {"destination:", handler_destination},
+  {"id:", handler_id},
+  {0},
+};
 
 void *send_message_worker(void *data) {
   stomp_msginfo_t *msginfo = (stomp_msginfo_t *)data;
@@ -122,6 +111,10 @@ frame_t *handler_stomp_subscribe(frame_t *frame) {
   debug("(handle_stomp_subscribe) sock: %d [%d]", frame->sock, msginfo->sock);
 
   pthread_create(&thread_id, NULL, send_message_worker, msginfo);
+
+  if(GET(msginfo, SET_ID)) {
+    register_subscriber(msginfo->id, thread_id);
+  }
 
   return NULL;
 }
