@@ -21,4 +21,4 @@ tests/kazusa_test
 stamp-h1
 .dirstamp
 *.conf
-core.*
+core

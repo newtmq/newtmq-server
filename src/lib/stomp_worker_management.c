@@ -8,6 +8,8 @@ typedef struct stomp_handler_t {
   frame_t *(*handler)(frame_t *);
 } stomp_handler_t;
 
+static management_t management_info;
+
 static stomp_handler_t stomp_handlers[] = {
   {"SEND",        handler_stomp_send},
   {"SUBSCRIBE",   handler_stomp_subscribe},
@@ -40,6 +42,80 @@ static int handle_frame(frame_t *frame) {
   }
 }
 
+int initialize_manager() {
+  pthread_mutex_init(&management_info.mutex, NULL);
+  INIT_LIST_HEAD(&management_info.h_subscribe);
+
+  return RET_SUCCESS;
+}
+
+int register_subscriber(char *id, pthread_t *tid) {
+  subscribe_t *subscribe_info;
+
+  if(id != NULL) {
+    int len = LD_MAX;
+
+    subscribe_info = (subscribe_t *)malloc(sizeof(subscribe_t));
+    if(subscribe_info == NULL) {
+      return RET_ERROR;
+    }
+
+    if(strlen(id) < LD_MAX) {
+      len = strlen(id);
+    }
+
+    INIT_LIST_HEAD(&subscribe_info->list);
+    memcpy(subscribe_info->id, id, len);
+    subscribe_info->thread_id = tid;
+
+    pthread_mutex_lock(&management_info.mutex);
+    {
+      list_add(&subscribe_info->list, &management_info.h_subscribe);
+    }
+    pthread_mutex_unlock(&management_info.mutex);
+  }
+
+  return RET_SUCCESS;
+}
+
+int unregister_subscriber(char *id) {
+  subscribe_t *info = NULL;
+  int ret = RET_ERROR;
+
+  if(id != NULL) {
+    pthread_mutex_lock(&management_info.mutex);
+    {
+      if(! list_empty(&management_info.h_subscribe)) {
+        info = list_first_entry(&management_info.h_subscribe, subscribe_t, list);
+        list_del(&info->list);
+
+        free(info);
+
+        ret = RET_SUCCESS;
+      }
+    }
+    pthread_mutex_unlock(&management_info.mutex);
+  }
+
+  return ret;
+}
+
+subscribe_t *get_subscriber(char *id) {
+  subscribe_t *ret = NULL;
+
+  if(id != NULL) {
+    pthread_mutex_lock(&management_info.mutex);
+    {
+      if(! list_empty(&management_info.h_subscribe)) {
+        ret = list_first_entry(&management_info.h_subscribe, subscribe_t, list);
+      }
+    }
+    pthread_mutex_unlock(&management_info.mutex);
+  }
+
+  return ret;
+}
+
 int iterate_header(struct list_head *h_header, stomp_header_handler_t *handlers, void *data) {
   linedata_t *line;
 
@@ -62,6 +138,8 @@ int iterate_header(struct list_head *h_header, stomp_header_handler_t *handlers,
 
 void *stomp_management_worker(void *data) {
   frame_t *frame;
+
+  initialize_manager();
 
   while(1) {
     frame = get_frame_from_bucket();

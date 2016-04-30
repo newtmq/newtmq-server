@@ -1,6 +1,7 @@
 #include "unit.h"
 
 #include <kazusa/common.h>
+#include <kazusa/stomp_management_worker.h>
 
 #include <string.h>
 
@@ -67,6 +68,15 @@ static void test_frame(void) {
   }
 }
 
+static void test_subscriber(void) {
+  char id[] = "hoge";
+
+  CU_ASSERT(initialize_manager() == RET_SUCCESS);
+  CU_ASSERT(register_subscriber(id, NULL) == RET_SUCCESS);
+  CU_ASSERT(get_subscriber(id) != NULL);
+  CU_ASSERT(unregister_subscriber(id) == RET_SUCCESS);
+}
+
 int test_stomp(CU_pSuite suite) {
   suite = CU_add_suite("STOMP Test", NULL, NULL);
   if(suite == NULL) {
@@ -76,6 +86,7 @@ int test_stomp(CU_pSuite suite) {
   CU_add_test(suite, "start_connection and create a frame", test_initialize);
   CU_add_test(suite, "check bucket", test_bucket);
   CU_add_test(suite, "check frame in bucket", test_frame);
+  CU_add_test(suite, "check subscriber", test_subscriber);
 
   return CU_SUCCESS;
 }
