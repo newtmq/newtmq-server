@@ -8,16 +8,13 @@
 
 #include <assert.h>
 
-#define SET_DESTINATION (1 << 0)
-#define SET_ID          (1 << 1)
-
 static int handler_destination(char *context, void *data) {
   stomp_msginfo_t *msginfo = (stomp_msginfo_t *)data;
   int ret = RET_ERROR;
 
   if(msginfo != NULL) {
     memcpy(msginfo->qname, context, strlen(context));
-    SET(msginfo, SET_DESTINATION);
+    SET(msginfo, DESTINATION_IS_SET);
 
     ret = RET_SUCCESS;
   }
@@ -31,7 +28,7 @@ static int handler_id(char *context, void *data) {
 
   if(msginfo != NULL) {
     memcpy(msginfo->id, context, strlen(context));
-    SET(msginfo, SET_ID);
+    SET(msginfo, ID_IS_SET);
 
     ret = RET_SUCCESS;
   }
@@ -103,7 +100,7 @@ frame_t *handler_stomp_subscribe(frame_t *frame) {
     return NULL;
   }
 
-  if(! GET(msginfo, SET_DESTINATION)) {
+  if(! GET(msginfo, DESTINATION_IS_SET)) {
     stomp_send_error(frame->sock, "no destination is specified\n");
     return NULL;
   }
@@ -112,7 +109,7 @@ frame_t *handler_stomp_subscribe(frame_t *frame) {
 
   pthread_create(&thread_id, NULL, send_message_worker, msginfo);
 
-  if(GET(msginfo, SET_ID)) {
+  if(GET(msginfo, ID_IS_SET)) {
     register_subscriber(msginfo->id, thread_id);
   }
 

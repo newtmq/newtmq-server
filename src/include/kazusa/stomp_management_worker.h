@@ -4,6 +4,9 @@
 #include <kazusa/stomp.h>
 #include <pthread.h>
 
+#define DESTINATION_IS_SET (1 << 0)
+#define ID_IS_SET          (1 << 1)
+
 typedef struct stomp_msginfo_t {
   char qname[LD_MAX];
   char id[LD_MAX];
