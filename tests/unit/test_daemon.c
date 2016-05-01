@@ -9,7 +9,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 
-#define PORT_NUM 12345
+#define PORT_NUM 12346
 
 static void init_kd_config(kd_config *config) {
   config->port = PORT_NUM;

@@ -35,6 +35,10 @@ int daemon_start(kd_config config) {
   };
   int i;
 
+  if(config.loglevel != NULL) {
+    set_logger(config.loglevel);
+  }
+
   for(i=0; i<WorkerLength; i++) {
     pthread_create(&worker_ids[i], NULL, workers[i].func, workers[i].argument);
   }

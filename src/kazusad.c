@@ -27,10 +27,6 @@ int main(int argc, char **argv) {
     exit(1);
   }
 
-  if(config.loglevel != NULL) {
-    set_logger(config.loglevel);
-  }
-
   if(daemon_initialize() == RET_ERROR) {
     exit(1);
   }

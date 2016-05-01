@@ -5,16 +5,13 @@
 #include <string.h>
 #include <assert.h>
 
-#define PATHLEN 512
-
 static void test_load_config(void) {
-  int number;
-  char confpath[PATHLEN];
+  char confpath[512];
   kd_config config;
 
   /* set configuration path */
-  assert(getcwd(confpath, PATHLEN) != NULL);
-  sprintf(confpath, "%s/%s", confpath, ".test.conf");
+  assert(getcwd(confpath, sizeof(confpath)) != NULL);
+  sprintf(confpath, "%s/%s", confpath, TEST_CONFIG);
 
   load_config(confpath, &config);
 
