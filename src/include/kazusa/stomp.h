@@ -76,11 +76,6 @@ void free_frame(frame_t *);
 
 frame_t *get_frame_from_bucket();
 
-/* processing handlers for each STOMP protocol frames */
-frame_t *handler_stomp_connect(frame_t *);
-frame_t *handler_stomp_send(frame_t *);
-frame_t *handler_stomp_subscribe(frame_t *);
-
 /* This is used over each STOMP handlers */
 void stomp_send_error(int, char *);
 

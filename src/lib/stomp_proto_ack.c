@@ -1,6 +1,7 @@
 #include <kazusa/common.h>
-
 #include <kazusa/stomp_management_worker.h>
+
+#include <assert.h>
 
 static int handler_id(char *context, void *data) {
   stomp_msginfo_t *msginfo = (stomp_msginfo_t *)data;

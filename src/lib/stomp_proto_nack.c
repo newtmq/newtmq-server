@@ -22,7 +22,7 @@ static stomp_header_handler_t handlers[] = {
   {0},
 };
 
-frame_t *handler_stomp_unsubscribe(frame_t *frame) {
+frame_t *handler_stomp_nack(frame_t *frame) {
   stomp_msginfo_t *msginfo;
 
   assert(frame != NULL);
@@ -34,19 +34,12 @@ frame_t *handler_stomp_unsubscribe(frame_t *frame) {
   }
 
   if(iterate_header(&frame->h_attrs, handlers, msginfo) == RET_ERROR) {
-    err("(handle_stomp_unsubscribe) validation error");
+    err("(handle_stomp_nack) validation error");
     stomp_send_error(frame->sock, "failed to validate header\n");
     return NULL;
   }
 
-  if(GET(msginfo, ID_IS_SET)) {
-    subscribe_t *sub_info = get_subscriber(msginfo->id);
-    if(sub_info != NULL) {
-      pthread_cancel(sub_info->thread_id);
-    }
-
-    unregister_subscriber(msginfo->id);
-  }
+  /* implementation for nack */
 
   free_msginfo(msginfo);
 
