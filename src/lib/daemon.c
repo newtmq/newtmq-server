@@ -1,8 +1,8 @@
-#include <kazusa/daemon.h>
-#include <kazusa/common.h>
-#include <kazusa/connection.h>
-#include <kazusa/stomp.h>
-#include <kazusa/stomp_management_worker.h>
+#include <newt/daemon.h>
+#include <newt/common.h>
+#include <newt/connection.h>
+#include <newt/stomp.h>
+#include <newt/stomp_management_worker.h>
 
 #include <pthread.h>
 
@@ -27,7 +27,7 @@ int daemon_initialize() {
   return RET_SUCCESS;
 }
 
-int daemon_start(kd_config config) {
+int daemon_start(newt_config config) {
   pthread_t worker_ids[WorkerLength];
   thread_info_t workers[] = {
     {connection_worker, &config},

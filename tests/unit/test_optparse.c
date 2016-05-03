@@ -2,8 +2,8 @@
 
 static void test_set_valid(void) {
   struct cmd_args args = {0};
-  char config_path[] = "/usr/local/etc/kazusad.conf";
-  char *argv[] = {"kazusad", "-c", config_path};
+  char config_path[] = "/usr/local/etc/newtd.conf";
+  char *argv[] = {"newtd", "-c", config_path};
   int argc = 3;
 
   parse_opt(argc, argv, &args);
@@ -13,7 +13,7 @@ static void test_set_valid(void) {
 
 static void test_set_nothing(void) {
   struct cmd_args args = {0};
-  char *argv[] = {"kazusad"};
+  char *argv[] = {"newtd"};
   int argc = 1;
 
   parse_opt(argc, argv, &args);

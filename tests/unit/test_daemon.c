@@ -1,7 +1,7 @@
 #include "unit.h"
 
-#include <kazusa/common.h>
-#include <kazusa/daemon.h>
+#include <newt/common.h>
+#include <newt/daemon.h>
 
 #include <signal.h>
 #include <stdlib.h>
@@ -11,15 +11,15 @@
 
 #define PORT_NUM 12346
 
-static void init_kd_config(kd_config *config) {
+static void init_newt_config(newt_config *config) {
   config->port = PORT_NUM;
 }
 
 static void check_daemon(void) {
   pid_t pid;
-  kd_config config;
+  newt_config config;
 
-  init_kd_config(&config);
+  init_newt_config(&config);
 
   if((pid = fork()) == 0) {
     CU_ASSERT(daemon_initialize() == RET_SUCCESS);
@@ -36,7 +36,7 @@ static void check_daemon(void) {
 }
 
 int test_daemon(CU_pSuite suite) {
-  suite = CU_add_suite("kazusad daemon test", NULL, NULL);
+  suite = CU_add_suite("newtd daemon test", NULL, NULL);
   if(suite == NULL) {
     return CU_ERROR;
   }

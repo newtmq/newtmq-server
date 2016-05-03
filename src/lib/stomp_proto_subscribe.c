@@ -1,10 +1,10 @@
-#include <kazusa/list.h>
-#include <kazusa/stomp.h>
-#include <kazusa/common.h>
-#include <kazusa/logger.h>
-#include <kazusa/queue.h>
+#include <newt/list.h>
+#include <newt/stomp.h>
+#include <newt/common.h>
+#include <newt/logger.h>
+#include <newt/queue.h>
 
-#include <kazusa/stomp_management_worker.h>
+#include <newt/stomp_management_worker.h>
 
 #include <assert.h>
 

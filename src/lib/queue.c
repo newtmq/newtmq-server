@@ -3,9 +3,9 @@
 #include <stdlib.h>
 #include <limits.h>
 
-#include <kazusa/common.h>
-#include <kazusa/list.h>
-#include <kazusa/queue.h>
+#include <newt/common.h>
+#include <newt/list.h>
+#include <newt/queue.h>
 
 struct list_head *queuebox[QB_SIZE] = {0};
 static pthread_mutex_t queuebox_lock;

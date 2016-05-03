@@ -1,17 +1,17 @@
-#include <kazusa/config.h>
-#include <kazusa/common.h>
-#include <kazusa/logger.h>
+#include <newt/config.h>
+#include <newt/common.h>
+#include <newt/logger.h>
 
 static cfg_opt_t config_opts[] = {
   CFG_STR("server", "localhost", CFGF_NONE),
   CFG_INT("port", 61613, CFGF_NONE),
   CFG_STR("loglevel", NULL, CFGF_NONE),
-  CFG_STR("logfile", "/tmp/kazusad.log", CFGF_NONE),
+  CFG_STR("logfile", "/tmp/newtd.log", CFGF_NONE),
   CFG_BOOL("debug", cfg_false, CFGF_NONE),
   CFG_END()
 };
 
-int load_config(char *confpath, kd_config *config) {
+int load_config(char *confpath, newt_config *config) {
   int ret;
   cfg_t *cfg;
 

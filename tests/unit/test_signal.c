@@ -7,8 +7,8 @@
 #include <string.h>
 #include <sys/mman.h>
 
-#include <kazusa/signal.h>
-#include <kazusa/common.h>
+#include <newt/signal.h>
+#include <newt/common.h>
 
 static int handler_test1(void *data) {
   (*(int *)data)++;

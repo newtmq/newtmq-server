@@ -1,9 +1,9 @@
-#include <kazusa/connection.h>
-#include <kazusa/config.h>
-#include <kazusa/stomp.h>
-#include <kazusa/signal.h>
-#include <kazusa/common.h>
-#include <kazusa/logger.h>
+#include <newt/connection.h>
+#include <newt/config.h>
+#include <newt/stomp.h>
+#include <newt/signal.h>
+#include <newt/common.h>
+#include <newt/logger.h>
 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -91,7 +91,7 @@ static void *connection_co_worker(void *data) {
 }
 
 void *connection_worker(void *data) {
-  kd_config *conf = (kd_config *)data;
+  newt_config *conf = (newt_config *)data;
   struct sockaddr_in addr;
   int sd;
   int acc_sd;

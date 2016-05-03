@@ -1,14 +1,14 @@
-#include <kazusa/common.h>
-#include <kazusa/optparse.h>
-#include <kazusa/config.h>
-#include <kazusa/daemon.h>
-#include <kazusa/logger.h>
+#include <newt/common.h>
+#include <newt/optparse.h>
+#include <newt/config.h>
+#include <newt/daemon.h>
+#include <newt/logger.h>
 
 #include <stdlib.h>
 
 int main(int argc, char **argv) {
   struct cmd_args args;
-  kd_config config;
+  newt_config config;
   int ret;
 
   /* register signal handler */

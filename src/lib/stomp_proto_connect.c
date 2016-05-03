@@ -1,7 +1,7 @@
-#include <kazusa/list.h>
-#include <kazusa/stomp.h>
-#include <kazusa/common.h>
-#include <kazusa/logger.h>
+#include <newt/list.h>
+#include <newt/stomp.h>
+#include <newt/common.h>
+#include <newt/logger.h>
 
 #include <string.h>
 #include <assert.h>

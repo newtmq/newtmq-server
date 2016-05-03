@@ -1,7 +1,7 @@
 #ifndef __STOMP_H__
 #define __STOMP_H__
 
-#include <kazusa/list.h>
+#include <newt/list.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

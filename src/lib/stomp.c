@@ -1,9 +1,9 @@
-#include <kazusa/stomp.h>
-#include <kazusa/common.h>
-#include <kazusa/signal.h>
-#include <kazusa/logger.h>
+#include <newt/stomp.h>
+#include <newt/common.h>
+#include <newt/signal.h>
+#include <newt/logger.h>
 
-#include <kazusa/stomp_management_worker.h>
+#include <newt/stomp_management_worker.h>
 
 #include <assert.h>
 

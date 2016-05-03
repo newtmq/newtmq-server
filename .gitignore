@@ -16,8 +16,8 @@ configure
 depcomp
 install-sh
 missing
-src/kazusad
-tests/kazusa_test
+src/newtd
+tests/newt_test
 stamp-h1
 .dirstamp
 *.conf

@@ -7,7 +7,7 @@
 
 static void test_load_config(void) {
   char confpath[512];
-  kd_config config;
+  newt_config config;
 
   /* set configuration path */
   assert(getcwd(confpath, sizeof(confpath)) != NULL);

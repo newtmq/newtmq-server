@@ -1,10 +1,10 @@
 SUBDIRS = lib
 
-bin_PROGRAMS = kazusad
+bin_PROGRAMS = newtd
 
-kazusad_LDFLAGS = -L./lib
-kazusad_LDADD   = -l_kazusa -lconfuse -lpthread
-kazusad_CFLAGS  = -I./include
+newtd_LDFLAGS = -L./lib
+newtd_LDADD   = -l_newt -lconfuse -lpthread
+newtd_CFLAGS  = -I./include
 
-kazusad_DEPENDENCIES = ./lib/lib_kazusa.a
-kazusad_SOURCES = kazusad.c
+newtd_DEPENDENCIES = ./lib/lib_newt.a
+newtd_SOURCES = newtd.c

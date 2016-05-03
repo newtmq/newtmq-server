@@ -6,7 +6,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
-#include <kazusa/config.h>
+#include <newt/config.h>
 
 void *get_connection_info();
 void *connection_worker(void *);

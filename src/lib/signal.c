@@ -3,8 +3,8 @@
 #include <signal.h>
 #include <string.h>
 
-#include <kazusa/signal.h>
-#include <kazusa/common.h>
+#include <newt/signal.h>
+#include <newt/common.h>
 
 LIST_HEAD(h_signal);
 

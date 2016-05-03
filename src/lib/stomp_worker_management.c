@@ -1,7 +1,7 @@
-#include <kazusa/common.h>
-#include <kazusa/logger.h>
-#include <kazusa/stomp.h>
-#include <kazusa/stomp_management_worker.h>
+#include <newt/common.h>
+#include <newt/logger.h>
+#include <newt/stomp.h>
+#include <newt/stomp_management_worker.h>
 
 typedef struct stomp_handler_t {
   char *name;

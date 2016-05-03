@@ -1,6 +1,6 @@
-check_PROGRAMS = kazusa_test
+check_PROGRAMS = newt_test
 
-kazusa_test_SOURCES = test.c \
+newt_test_SOURCES = test.c \
 											connection.c \
 											client.c \
 											daemon.c \
@@ -12,9 +12,9 @@ kazusa_test_SOURCES = test.c \
 											unit/test_daemon.c \
 											unit/test_queue.c \
 											proto/test_connect.c
-kazusa_test_LDADD = -lcunit -l_kazusa -lconfuse -lpthread
-kazusa_test_CFLAGS = -I../src/include/
-kazusa_test_LDFLAGS = -L../src/lib/
+newt_test_LDADD = -lcunit -l_newt -lconfuse -lpthread
+newt_test_CFLAGS = -I../src/include/
+newt_test_LDFLAGS = -L../src/lib/
 
 check:
-	./kazusa_test
+	./newt_test

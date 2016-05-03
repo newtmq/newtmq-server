@@ -12,7 +12,7 @@ int main(int argc, char **argv) {
   int ret;
   pid_t pid;
 
-  pid = start_kazusad();
+  pid = start_newtd();
   if(pid > 0) {
     CU_initialize_registry();
 

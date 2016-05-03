@@ -2,10 +2,10 @@
 #define __UNIT_H__
 
 #include <CUnit/CUnit.h>
-#include <kazusa/optparse.h>
-#include <kazusa/config.h>
-#include <kazusa/stomp.h>
-#include <kazusa/list.h>
+#include <newt/optparse.h>
+#include <newt/config.h>
+#include <newt/stomp.h>
+#include <newt/list.h>
 
 #include <test.h>
 

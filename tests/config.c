@@ -2,7 +2,7 @@
 
 #include "config.h"
 
-int set_config(kd_config *config) {
+int set_config(newt_config *config) {
   char confpath[512];
 
   getcwd(confpath, sizeof(confpath));

@@ -1,7 +1,7 @@
 #include "unit.h"
 
-#include <kazusa/common.h>
-#include <kazusa/queue.h>
+#include <newt/common.h>
+#include <newt/queue.h>
 
 #include <stdlib.h>
 

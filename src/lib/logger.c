@@ -1,5 +1,5 @@
-#include <kazusa/logger.h>
-#include <kazusa/common.h>
+#include <newt/logger.h>
+#include <newt/common.h>
 
 #include <stdio.h>
 #include <stdarg.h>

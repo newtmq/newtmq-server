@@ -1,7 +1,7 @@
 #ifndef __SIGNAL_H__
 #define __SIGNAL_H__
 
-#include <kazusa/list.h>
+#include <newt/list.h>
 
 typedef struct sighandle_t {
   int (*func)(void *);

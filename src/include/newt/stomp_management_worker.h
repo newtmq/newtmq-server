@@ -1,7 +1,7 @@
 #ifndef __STOMP_MANAGEMENT_H__
 #define __STOMP_MANAGEMENT_H__
 
-#include <kazusa/stomp.h>
+#include <newt/stomp.h>
 #include <pthread.h>
 
 #define DESTINATION_IS_SET (1 << 0)

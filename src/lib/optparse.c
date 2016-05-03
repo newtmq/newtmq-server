@@ -1,7 +1,7 @@
-#include <kazusa/optparse.h>
+#include <newt/optparse.h>
 
 static struct argp_option options[] = {
-  {"config", 'c', "config_path", 0, "filepath of configuration for kazusad"},
+  {"config", 'c', "config_path", 0, "filepath of configuration for newtd"},
   {0}
 };
 

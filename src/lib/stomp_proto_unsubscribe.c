@@ -1,5 +1,5 @@
-#include <kazusa/common.h>
-#include <kazusa/stomp_management_worker.h>
+#include <newt/common.h>
+#include <newt/stomp_management_worker.h>
 
 #include <assert.h>
 
