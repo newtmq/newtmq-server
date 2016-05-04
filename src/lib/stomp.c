@@ -43,6 +43,8 @@ frame_t *alloc_frame() {
 
   INIT_LIST_HEAD(&ret->h_attrs);
   INIT_LIST_HEAD(&ret->h_data);
+  INIT_LIST_HEAD(&ret->l_bucket);
+  INIT_LIST_HEAD(&ret->l_transaction);
 
   ret->sock = 0;
   ret->cinfo = NULL;

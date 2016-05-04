@@ -1,5 +1,7 @@
 #include "unit.h"
 
+#include <newt/config.h>
+
 #include <unistd.h>
 #include <stdio.h>
 #include <string.h>

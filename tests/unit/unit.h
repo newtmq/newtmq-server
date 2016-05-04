@@ -3,7 +3,6 @@
 
 #include <CUnit/CUnit.h>
 #include <newt/optparse.h>
-#include <newt/config.h>
 #include <newt/stomp.h>
 #include <newt/list.h>
 

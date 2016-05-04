@@ -7,6 +7,7 @@ lib_newt_a_SOURCES = optparse.c \
                      daemon.c \
                      logger.c \
                      connection.c \
+                     transaction.c \
                      stomp_proto_send.c \
                      stomp_proto_connect.c \
                      stomp_proto_subscribe.c \

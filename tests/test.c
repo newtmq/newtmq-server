@@ -9,7 +9,7 @@
 
 int main(int argc, char **argv) {
   CU_pSuite suite;
-  int ret;
+  int ret, failed_num;
   pid_t pid;
 
   pid = start_newtd();
@@ -22,14 +22,19 @@ int main(int argc, char **argv) {
     ADD_TESTS(test_daemon);
     ADD_TESTS(test_stomp);
     ADD_TESTS(test_queue);
+    ADD_TESTS(test_transaction);
     ADD_TESTS(test_proto_connect);
 
     CU_basic_run_tests();
+
+    failed_num = CU_get_number_of_tests_failed();
+
     CU_cleanup_registry();
+
 
     kill(pid, SIGINT);
     wait(NULL);
   }
 
-  return 0;
+  return failed_num;
 }

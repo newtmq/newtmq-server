@@ -1,6 +1,6 @@
 #include <test.h>
 
-#include "config.h"
+#include <newt/config.h>
 
 int set_config(newt_config *config) {
   char confpath[512];

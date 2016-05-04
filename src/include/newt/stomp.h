@@ -33,17 +33,22 @@ typedef struct frame_bucket_t {
 } frame_bucket_t;
 
 /* This describes STOMP Frame*/
-typedef struct frame_t {
+typedef struct frame_t frame_t;
+struct frame_t {
   char name[FNAME_LEN];
   int sock;
   unsigned int status;
   struct list_head h_attrs;
   struct list_head h_data;
   struct list_head l_bucket;
+  struct list_head l_transaction;
 
   /* To know the connection state */
   stomp_conninfo_t *cinfo;
-} frame_t;
+
+  /* This parameters are used for transaction processing */
+  int (*transaction_callback)(frame_t *);
+};
 
 /* This describes a Frame attribute */
 typedef struct linedata_t {
