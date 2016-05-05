@@ -15,6 +15,7 @@ typedef struct transaction_t {
 
 int transaction_init();
 int transaction_destruct();
+int transaction_start(char *);
 int transaction_add(char *, frame_t *);
 int transaction_abort(char *);
 int transaction_commit(char *);

@@ -9,7 +9,33 @@
 
 struct dstinfo_t {
   char *qname;
+  char *tid;
 };
+
+static int transaction_callback(frame_t *frame) {
+  int ret = RET_ERROR;
+
+  if(frame != NULL && frame->transaction_data != NULL) {
+    enqueue((void *)frame, (char *)frame->transaction_data);
+
+    ret = RET_SUCCESS;
+  }
+
+  return ret;
+}
+
+static int handler_transaction(char *context, void *data) {
+  struct dstinfo_t *dstinfo = (struct dstinfo_t *)data;
+  int ret = RET_ERROR;
+
+  if(dstinfo != NULL) {
+    dstinfo->tid = context;
+
+    ret = RET_SUCCESS;
+  }
+
+  return ret;
+}
 
 static int handler_destination(char *context, void *data) {
   struct dstinfo_t *dstinfo = (struct dstinfo_t *)data;
@@ -26,6 +52,7 @@ static int handler_destination(char *context, void *data) {
 
 static stomp_header_handler_t handlers[] = {
   {"destination:", handler_destination},
+  {"transaction:", handler_transaction},
   {0},
 };
 
@@ -46,10 +73,12 @@ frame_t *handler_stomp_send(frame_t *frame) {
     return NULL;
   }
 
-  linedata_t *ldata = list_first_entry(&frame->h_data, linedata_t, l_frame);
-  debug("(handle_stomp_send) enqueued : %s", ldata->data);
-
-  enqueue((void *)frame, dstinfo.qname);
+  if(dstinfo.tid == NULL) {
+    enqueue((void *)frame, dstinfo.qname);
+  } else {
+    frame->transaction_data = (void *)dstinfo.qname;
+    transaction_add(dstinfo.tid, frame);
+  }
 
   return frame;
 }

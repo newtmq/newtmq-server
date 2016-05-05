@@ -24,6 +24,11 @@ int daemon_initialize() {
     return RET_ERROR;
   }
 
+  if(transaction_init() == RET_ERROR) {
+    perror("failed to initialize transaction_manager");
+    return RET_ERROR;
+  }
+
   return RET_SUCCESS;
 }
 

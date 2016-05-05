@@ -88,6 +88,19 @@ int transaction_destruct() {
   return RET_SUCCESS;
 }
 
+int transaction_start(char *tid) {
+  transaction_t *obj;
+  int ret = RET_ERROR;
+
+  obj = get_transaction(tid);
+  if(obj == NULL) {
+    obj = alloc_transaction(tid);
+    ret = RET_SUCCESS;
+  }
+
+  return ret;
+}
+
 int transaction_add(char *tid, frame_t *frame) {
   transaction_t *obj;
   int ret = RET_ERROR;
@@ -95,10 +108,6 @@ int transaction_add(char *tid, frame_t *frame) {
   assert(tid != NULL);
 
   obj = get_transaction(tid);
-  if(obj == NULL) {
-    obj = alloc_transaction(tid);
-  }
-
   if(obj != NULL) {
     pthread_mutex_lock(&obj->mutex);
     {
@@ -145,7 +154,6 @@ int transaction_commit(char *tid) {
         int ret_callback = frame->transaction_callback(frame);
 
         list_del(&frame->l_transaction);
-        free_frame(frame);
 
         if(ret_callback == RET_ERROR) {
           warn("[transaction_commit] failed to handle frame (%s)", frame->name);

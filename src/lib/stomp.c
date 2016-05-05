@@ -50,6 +50,9 @@ frame_t *alloc_frame() {
   ret->cinfo = NULL;
   ret->status = STATUS_BORN;
 
+  ret->transaction_callback = NULL;
+  ret->transaction_data = NULL;
+
   return ret;
 }
 
@@ -77,6 +80,10 @@ void free_frame(frame_t *frame) {
     }
   }
   pthread_mutex_unlock(&stomp_frame_bucket.mutex);
+
+  if(frame->transaction_data != NULL) {
+    free(frame->transaction_data);
+  }
 
   free(frame);
 }

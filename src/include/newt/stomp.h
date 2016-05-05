@@ -48,6 +48,7 @@ struct frame_t {
 
   /* This parameters are used for transaction processing */
   int (*transaction_callback)(frame_t *);
+  void *transaction_data;
 };
 
 /* This describes a Frame attribute */
