@@ -45,5 +45,6 @@ frame_t *handler_stomp_subscribe(frame_t *);
 frame_t *handler_stomp_unsubscribe(frame_t *);
 frame_t *handler_stomp_ack(frame_t *);
 frame_t *handler_stomp_nack(frame_t *);
+frame_t *handler_stomp_begin(frame_t *);
 
 #endif

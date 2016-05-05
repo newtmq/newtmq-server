@@ -42,7 +42,7 @@ static transaction_t *alloc_transaction(char *tid) {
 
   pthread_mutex_lock(&manager.mutex);
   {
-    list_add(&obj->l_manager, &manager.list);
+    list_add_tail(&obj->l_manager, &manager.list);
   }
   pthread_mutex_unlock(&manager.mutex);
 
