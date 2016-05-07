@@ -20,7 +20,7 @@ static void test_load_config(void) {
   CU_ASSERT(config.loglevel == NULL);
 
   // check whether specified parameter is set.
-  CU_ASSERT(strcmp(config.server, "testnode") == 0);
+  CU_ASSERT(strcmp(config.server, "127.0.0.1") == 0);
 
   // check whether default parameter is set.
   CU_ASSERT(config.debug == cfg_false);

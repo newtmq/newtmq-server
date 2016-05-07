@@ -104,6 +104,9 @@ void *connection_worker(void *data) {
   addr.sin_family = AF_INET;
   addr.sin_port = htons(conf->port);
   addr.sin_addr.s_addr = INADDR_ANY;
+  if(conf->server != NULL) {
+    addr.sin_addr.s_addr = inet_addr(conf->server);
+  }
  
   if(bind(sd, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
     perror("bind");
