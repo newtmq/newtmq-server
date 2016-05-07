@@ -7,11 +7,10 @@
 #include "client.h"
 #include "daemon.h"
 
-static void test_disconnect(void) {
+static void test_error(void) {
   char buf[512];
   char *msg[] = {
-    "DISCONNECT\n",
-    "receipt:test-1\n",
+    "INVALID\n",
     NULL,
   };
   int sock, len, i;
@@ -29,18 +28,18 @@ static void test_disconnect(void) {
 
   /* check not to receive ERROR frame */
   len = recv(sock, buf, sizeof(buf), MSG_DONTWAIT);
-
   CU_ASSERT(len > 0);
-  CU_ASSERT(strncmp(buf, "RECEIPT\n", 8) == 0);
+  CU_ASSERT(strncmp(buf, "ERROR\n", 6) == 0);
 }
 
-int test_proto_disconnect(CU_pSuite suite) {
-  suite = CU_add_suite("Test sending DISCONNECT frame", NULL, NULL);
+int test_proto_error(CU_pSuite suite) {
+  suite = CU_add_suite("Test receiving ERROR frame", NULL, NULL);
   if(suite == NULL) {
     return CU_ERROR;
   }
 
-  CU_add_test(suite, "succeed in sending BEGIN frame", test_disconnect);
+  CU_add_test(suite, "succeed in receiving ERROR frame", test_error);
 
   return CU_SUCCESS;
 }
+

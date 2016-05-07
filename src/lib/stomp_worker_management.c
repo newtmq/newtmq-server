@@ -25,8 +25,19 @@ static stomp_handler_t stomp_handlers[] = {
   {0},
 };
 
+static void send_handle_error(frame_t *frame) {
+  char msg[LD_MAX] = {0};
+
+  if(frame != NULL) {
+    sprintf(msg, "failed to handle frame (%s)", frame->name);
+    stomp_send_error(frame->sock, msg);
+  }
+}
+
 static int handle_frame(frame_t *frame) {
   int i;
+  /* This value specifies whether target frame is handled or not */
+  int is_frame_handled = 0;
   stomp_handler_t *h;
 
   for(i=0; h=&stomp_handlers[i], h->name!=NULL; i++) {
@@ -37,8 +48,15 @@ static int handle_frame(frame_t *frame) {
         free_frame(frame);
       }
 
+      /* indicate that the target frame is handled by STOMP protocol handlers */
+      is_frame_handled = 1;
+
       break;
     }
+  }
+
+  if(is_frame_handled == 0) {
+    send_handle_error(frame);
   }
 }
 
