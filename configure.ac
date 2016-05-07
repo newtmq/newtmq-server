@@ -5,7 +5,7 @@ AC_PREREQ([2.68])
 AC_INIT([project], [0.0.1], [user.localhost2000@gmail.com])
 AC_CONFIG_SRCDIR([src/newtd.c])
 AC_CONFIG_HEADERS([config.h])
-AM_INIT_AUTOMAKE([foreign])
+AM_INIT_AUTOMAKE([subdir-objects])
 
 # Checks for programs.
 AC_CHECK_LIB(pthread, pthread_create, [], echo "Error: Required library pthread not found. Install its development package and try again" && exit 1)
