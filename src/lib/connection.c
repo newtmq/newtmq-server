@@ -119,6 +119,8 @@ void *connection_worker(void *data) {
   }
 
   set_signal_handler(cleanup_connection, &sd);
+
+  info("NewtMQ is ready to accept requests (port: %d)", conf->port);
  
   struct sockaddr_in from_addr;
   socklen_t sin_size = sizeof(struct sockaddr_in);

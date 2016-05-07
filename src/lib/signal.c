@@ -20,6 +20,8 @@ static void cleanup_handler() {
 static void int_handle(int code) {
   sighandle_t *handler;
 
+  info("An interrupt signal has received. NewtMQ will be stopped after cleanup processing.");
+
   list_for_each_entry(handler, &h_signal, list) {
     (*handler->func)(handler->argument);
   }
