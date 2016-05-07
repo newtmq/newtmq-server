@@ -412,3 +412,16 @@ void stomp_send_error(int sock, char *body) {
     send_msg(sock, NULL);
   }
 }
+
+void stomp_send_receipt(int sock, char *id) {
+  int i;
+  char buf[LD_MAX] = {0};
+
+  if(sock > 0 && id != NULL) {
+    sprintf(buf, "receipt-id:%s\n", id);
+
+    send_msg(sock, "RECEIPT\n");
+    send_msg(sock, buf);
+    send_msg(sock, NULL);
+  }
+}

@@ -84,5 +84,6 @@ frame_t *get_frame_from_bucket();
 
 /* This is used over each STOMP handlers */
 void stomp_send_error(int, char *);
+void stomp_send_receipt(int, char *);
 
 #endif

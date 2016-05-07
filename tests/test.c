@@ -24,6 +24,7 @@ int main(int argc, char **argv) {
     ADD_TESTS(test_queue);
     ADD_TESTS(test_transaction);
     ADD_TESTS(test_proto_connect);
+    ADD_TESTS(test_proto_disconnect);
     ADD_TESTS(test_proto_begin);
 
     CU_basic_run_tests();

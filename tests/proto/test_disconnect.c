@@ -7,11 +7,11 @@
 #include "client.h"
 #include "daemon.h"
 
-static void test_begin(void) {
+static void test_disconnect(void) {
   char buf[512];
   char *msg[] = {
-    "BEGIN\n",
-    "transaction:tx1\n",
+    "DISCONNECT\n",
+    "receipt:test-1\n",
     NULL,
   };
   int sock, len, i;
@@ -29,16 +29,18 @@ static void test_begin(void) {
 
   /* check not to receive ERROR frame */
   len = recv(sock, buf, sizeof(buf), MSG_DONTWAIT);
-  CU_ASSERT(len < 0);
+
+  CU_ASSERT(len > 0);
+  CU_ASSERT(strncmp(buf, "RECEIPT\n", 8) == 0);
 }
 
-int test_proto_begin(CU_pSuite suite) {
+int test_proto_disconnect(CU_pSuite suite) {
   suite = CU_add_suite("TestConnectFrame", NULL, NULL);
   if(suite == NULL) {
     return CU_ERROR;
   }
 
-  CU_add_test(suite, "succeed in sending BEGIN frame", test_begin);
+  CU_add_test(suite, "succeed in sending BEGIN frame", test_disconnect);
 
   return CU_SUCCESS;
 }

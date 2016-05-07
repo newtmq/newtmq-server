@@ -13,6 +13,7 @@ newt_test_SOURCES = test.c \
                     unit/test_queue.c \
                     unit/test_transaction.c \
                     proto/test_connect.c \
+                    proto/test_disconnect.c \
                     proto/test_begin.c
 newt_test_LDADD = -lcunit -l_newt -lconfuse -lpthread
 newt_test_CFLAGS = -I../src/include/

@@ -40,11 +40,14 @@ subscribe_t *get_subscriber(char *);
 
 /* processing handlers for each STOMP protocol frames */
 frame_t *handler_stomp_connect(frame_t *);
+frame_t *handler_stomp_disconnect(frame_t *);
 frame_t *handler_stomp_send(frame_t *);
 frame_t *handler_stomp_subscribe(frame_t *);
 frame_t *handler_stomp_unsubscribe(frame_t *);
 frame_t *handler_stomp_ack(frame_t *);
 frame_t *handler_stomp_nack(frame_t *);
 frame_t *handler_stomp_begin(frame_t *);
+frame_t *handler_stomp_abort(frame_t *);
+frame_t *handler_stomp_commit(frame_t *);
 
 #endif
