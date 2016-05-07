@@ -18,8 +18,8 @@ static stomp_handler_t stomp_handlers[] = {
   {"DISCONNECT",  NULL}, // not implemented yet
   {"UNSUBSCRIBE", handler_stomp_unsubscribe},
   {"BEGIN",       handler_stomp_begin},
-  {"COMMIT",      NULL}, // not implemented yet
-  {"ABORT",       NULL}, // not implemented yet
+  {"COMMIT",      handler_stomp_commit},
+  {"ABORT",       handler_stomp_abort},
   {"ACK",         handler_stomp_ack},
   {"NACK",        handler_stomp_nack},
   {0},

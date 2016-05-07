@@ -21,7 +21,7 @@ static stomp_header_handler_t handlers[] = {
   {0},
 };
 
-frame_t *handler_stomp_begin(frame_t *frame) {
+frame_t *handler_stomp_commit(frame_t *frame) {
   char *transaction_id = NULL;
 
   assert(frame != NULL);
@@ -33,9 +33,9 @@ frame_t *handler_stomp_begin(frame_t *frame) {
   }
 
   if(transaction_id != NULL) {
-    transaction_start(transaction_id);
+    transaction_commit(transaction_id);
   } else {
-    stomp_send_error(frame->sock, "BEGIN frame MUST be specified transaction header");
+    stomp_send_error(frame->sock, "COMMIT frame MUST be specified transaction header");
   }
 
   return NULL;
