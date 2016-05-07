@@ -8,6 +8,8 @@ AC_CONFIG_HEADERS([config.h])
 AM_INIT_AUTOMAKE([subdir-objects])
 
 # Checks for programs.
+AC_CHECK_LIB(pthread, pthread_create, [], echo "Error: Required library pthread not found. Install its development package and try again" && exit 1)
+AC_CHECK_LIB(confuse, cfg_init, [], echo "Error: Required library confuse not found. Install ints development package  and try again" && exit 1)
 AC_PROG_CC
 AC_PROG_INSTALL
 AM_PROG_CC_C_O
