@@ -14,7 +14,7 @@ In the Debian / Ubuntu distribution, you can install it as below.
 ```$ sudo apt-get install libconfuse-dev libcunit1-dev```
 
 ## Download
-You can get the latest released version of NewtMQ from here.
+You can get the latest released version of NewtMQ from [here](https://github.com/newtmq/newtmq-server/releases).
 
 ## Installation
 NewtMQ is written in C-language, you may install as below just like some same language products.
