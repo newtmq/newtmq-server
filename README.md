@@ -3,7 +3,7 @@
 [![MIT License](http://img.shields.io/badge/license-MIT-blue.svg?style=flat)](LICENSE)
 
 NewtMQ is a yet another MOM (Message Oriented Middleware) with STOMP protocol.
-This aims to be high speed response and perform high-throughput. This project will try various measures to obtain these features.
+This aims to be low latency and perform high-throughput. This project will try various measures to obtain these features.
 
 # Getting Started
 
