@@ -58,8 +58,8 @@ static void do_logger(int level, char *fmt, va_list list) {
   struct tm *tminfo;
   char timebuf[TIME_BUF_LEN];
 
-  pthread_mutex_lock(&log_mutex);
   if(level >= curr_level) {
+    pthread_mutex_lock(&log_mutex);
     show_loglevel(level);
 
     time(&now);
@@ -71,8 +71,8 @@ static void do_logger(int level, char *fmt, va_list list) {
     vprintf(fmt, list);
     printf("\n");
     va_end(list);
+    pthread_mutex_unlock(&log_mutex);
   }
-  pthread_mutex_unlock(&log_mutex);
 }
 
 void debug(char *fmt, ...) {
