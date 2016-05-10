@@ -22,6 +22,20 @@ struct conninfo {
   pthread_mutex_t mutex;
 };
 
+static struct conninfo* alloc_conninfo() {
+  struct conninfo *cinfo;
+
+  cinfo = (struct conninfo *)malloc(sizeof(struct conninfo));
+  if(cinfo != NULL) {
+    memset(cinfo, 0, sizeof(struct conninfo));
+
+    INIT_LIST_HEAD(&cinfo->h_buf);
+    pthread_mutex_init(&cinfo->mutex, NULL);
+  }
+
+  return cinfo;
+}
+
 static int cleanup_co_worker(void *data) {
   struct conninfo *cinfo = (struct conninfo *)data;
   int ret = RET_ERROR;
@@ -32,6 +46,8 @@ static int cleanup_co_worker(void *data) {
     if(cinfo->protocol_data != NULL) {
       free(cinfo->protocol_data);
     }
+
+    free(cinfo);
 
     ret = RET_SUCCESS;
   }
@@ -52,40 +68,36 @@ static int cleanup_connection(void *data) {
 }
 
 static void *connection_co_worker(void *data) {
-  struct conninfo cinfo = {0};
+  struct conninfo *cinfo = (struct conninfo*)data;
   sighandle_t *handler;
   char buf[RECV_BUFSIZE];
 
-  if(data == NULL) {
+  if(cinfo == NULL) {
+    err("[connection_co_worker] thread argument is NULL");
     return NULL;
   }
 
-  pthread_mutex_init(&cinfo.mutex, NULL);
-  INIT_LIST_HEAD(&cinfo.h_buf);
-  cinfo.sock = *(int *)data;
-  cinfo.protocol_data = (void *)stomp_conn_init();
+  cinfo->protocol_data = (void *)stomp_conn_init();
 
   /* initialize processing after established connection */
   handler = set_signal_handler(cleanup_co_worker, &cinfo);
 
-  while(1) {
-    int len;
-
+  int len;
+  do {
     memset(buf, 0, RECV_BUFSIZE);
-    len = recv(cinfo.sock, buf, sizeof(buf), 0);
-    if(! len) {
-      break;
-    }
+    len = recv(cinfo->sock, buf, sizeof(buf), 0);
 
-    stomp_recv_data(buf, len, cinfo.sock, cinfo.protocol_data);
-  }
+    stomp_recv_data(buf, len, cinfo->sock, cinfo->protocol_data);
+  } while(len > 0);
 
-  /* cancel to parse of the current frame */
-  stomp_conn_finish(cinfo.protocol_data);
+  // cancel to parse of the current frame
+  stomp_conn_finish(cinfo->protocol_data);
 
   del_signal_handler(handler);
 
-  close(cinfo.sock);
+  close(cinfo->sock);
+
+  free(cinfo);
 
   return NULL;
 }
@@ -94,7 +106,6 @@ void *connection_worker(void *data) {
   newt_config *conf = (newt_config *)data;
   struct sockaddr_in addr;
   int sd;
-  int acc_sd;
  
   if((sd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
     perror("socket");
@@ -126,15 +137,23 @@ void *connection_worker(void *data) {
   socklen_t sin_size = sizeof(struct sockaddr_in);
   pthread_t thread_id;
   while(1) {
+    int acc_sd;
+    struct conninfo *cinfo;
+
     if((acc_sd = accept(sd, (struct sockaddr *)&from_addr, &sin_size)) < 0) {
-      perror("accept");
-      return NULL;
+      err("[connection_worker] failed to accept connection");
+      continue;
     }
 
-    pthread_create(&thread_id, NULL, &connection_co_worker, &acc_sd);
-  }
+    cinfo = alloc_conninfo();
+    if(cinfo != NULL) {
+      cinfo->sock = acc_sd;
 
-  info("(connection_worker) finished");
+      if(pthread_create(&thread_id, NULL, &connection_co_worker, cinfo)) {
+        err("[connection_worker] failed to create connection_co_worker");
+      }
+    }
+  }
  
   return NULL;
 }

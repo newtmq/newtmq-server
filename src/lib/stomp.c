@@ -57,18 +57,18 @@ frame_t *alloc_frame() {
 }
 
 void free_frame(frame_t *frame) {
-  linedata_t *data;
+  linedata_t *data, *l;
 
   /* delete header */
   if(! list_empty(&frame->h_attrs)) {
-    list_for_each_entry(data, &frame->h_attrs, l_frame) {
+    list_for_each_entry_safe(data, l, &frame->h_attrs, l_frame) {
       free(data);
     }
   }
 
   /* delete body */
   if(! list_empty(&frame->h_data)) {
-    list_for_each_entry(data, &frame->h_data, l_frame) {
+    list_for_each_entry_safe(data, l, &frame->h_data, l_frame) {
       free(data);
     }
   }
