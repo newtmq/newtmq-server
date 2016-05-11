@@ -30,6 +30,8 @@ static void test_error(void) {
   len = recv(sock, buf, sizeof(buf), MSG_DONTWAIT);
   CU_ASSERT(len > 0);
   CU_ASSERT(strncmp(buf, "ERROR\n", 6) == 0);
+
+  close(sock);
 }
 
 int test_proto_error(CU_pSuite suite) {

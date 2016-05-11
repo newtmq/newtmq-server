@@ -30,6 +30,8 @@ static void test_begin(void) {
   /* check not to receive ERROR frame */
   len = recv(sock, buf, sizeof(buf), MSG_DONTWAIT);
   CU_ASSERT(len < 0);
+
+  close(sock);
 }
 
 int test_proto_begin(CU_pSuite suite) {

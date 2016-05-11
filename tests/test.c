@@ -25,6 +25,7 @@ int main(int argc, char **argv) {
     ADD_TESTS(test_transaction);
     ADD_TESTS(test_proto_connect);
     ADD_TESTS(test_proto_disconnect);
+    ADD_TESTS(test_proto_subscribe);
     ADD_TESTS(test_proto_begin);
     ADD_TESTS(test_proto_error);
 

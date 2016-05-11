@@ -3,4 +3,7 @@
 
 int connect_server(void);
 
+int stomp_connect(int);
+int stomp_send(int, char *, int);
+
 #endif

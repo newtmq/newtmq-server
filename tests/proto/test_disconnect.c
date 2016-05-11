@@ -32,6 +32,8 @@ static void test_disconnect(void) {
 
   CU_ASSERT(len > 0);
   CU_ASSERT(strncmp(buf, "RECEIPT\n", 8) == 0);
+
+  close(sock);
 }
 
 int test_proto_disconnect(CU_pSuite suite) {
