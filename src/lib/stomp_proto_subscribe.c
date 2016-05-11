@@ -46,34 +46,51 @@ void *send_message_worker(void *data) {
   stomp_msginfo_t *msginfo = (stomp_msginfo_t *)data;
   frame_t *frame;
   int index = 0;
-  char hdr_dest[LD_MAX];
-  char hdr_msgid[LD_MAX];
+  char *hdr_dest, *hdr_msgid, *hdr_sub;
   linedata_t *body;
 
   assert(msginfo != NULL);
 
-  debug("(send_message_worker) msginfo->sock: %d", msginfo->sock);
+  hdr_sub = (char *)malloc(LD_MAX);
+  hdr_dest = (char *)malloc(LD_MAX);
+  hdr_msgid = (char *)malloc(LD_MAX);
+  if(hdr_dest != NULL && hdr_sub != NULL && hdr_msgid != NULL) {
 
-  while(is_socket_valid(msginfo->sock) == RET_SUCCESS) {
-    if((frame = (frame_t *)dequeue(msginfo->qname)) != NULL) {
-      /* making message-id attribute for each message */
-      sprintf(hdr_msgid, "message-id: %s-%d\n", msginfo->qname, index++);
-      debug("(send_message_worker) msg-id: %s", hdr_msgid);
+    debug("(send_message_worker) msginfo->sock: %d", msginfo->sock);
 
-      send_msg(msginfo->sock, "MESSAGE\n");
-      send_msg(msginfo->sock, hdr_dest);
-      send_msg(msginfo->sock, hdr_msgid);
-      send_msg(msginfo->sock, "\n");
-      list_for_each_entry(body, &frame->h_data, l_frame) {
-        send_msg(msginfo->sock, body->data);
+    if(GET(msginfo, ID_IS_SET)) {
+      sprintf(hdr_sub, "subscription: %s\n", msginfo->id);
+    }
+    sprintf(hdr_dest, "destination: %s\n", msginfo->qname);
+
+    while(is_socket_valid(msginfo->sock) == RET_SUCCESS) {
+
+      if((frame = (frame_t *)dequeue(msginfo->qname)) != NULL) {
+        /* making message-id attribute for each message */
+        sprintf(hdr_msgid, "message-id: %s-%d\n", msginfo->qname, index++);
+        debug("(send_message_worker) msg-id: %s", hdr_msgid);
+
+        send_msg(msginfo->sock, "MESSAGE\n");
+        send_msg(msginfo->sock, hdr_dest);
+        send_msg(msginfo->sock, hdr_msgid);
+        if(GET(msginfo, ID_IS_SET)) {
+          send_msg(msginfo->sock, hdr_sub);
+        }
         send_msg(msginfo->sock, "\n");
-      }
-      send_msg(msginfo->sock, NULL);
+        list_for_each_entry(body, &frame->h_data, l_frame) {
+          send_msg(msginfo->sock, body->data);
+          send_msg(msginfo->sock, "\n");
+        }
+        send_msg(msginfo->sock, NULL);
 
-      free_frame(frame);
+        free_frame(frame);
+      }
     }
   }
 
+  free(hdr_msgid);
+  free(hdr_dest);
+  free(hdr_sub);
   free_msginfo(msginfo);
 
   return NULL;
