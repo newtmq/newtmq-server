@@ -2,6 +2,8 @@
 #define __STOMP_H__
 
 #include <newt/list.h>
+#include <newt/connection.h>
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -71,11 +73,8 @@ typedef struct stomp_header_handler {
   int (*handler)(char *, void *);
 } stomp_header_handler_t;
 
-/* These functions are implemented in stomp_driver.c */
 int stomp_init();
-stomp_conninfo_t *stomp_conn_init();
-int stomp_conn_finish(void *);
-int stomp_recv_data(char *, int, int, void *);
+void *stomp_conn_worker(struct conninfo *);
 
 frame_t *alloc_frame();
 void free_frame(frame_t *);

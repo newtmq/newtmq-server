@@ -18,7 +18,7 @@ newt_test_SOURCES = test.c \
                     proto/test_subscribe.c \
                     proto/test_error.c
 newt_test_LDADD = -lcunit -l_newt -lconfuse -lpthread
-newt_test_CFLAGS = -I../src/include/
+newt_test_CFLAGS = -I../src/include/ -I../src/lib
 newt_test_LDFLAGS = -L../src/lib/
 
 check:

@@ -1,6 +1,7 @@
 #include <newt/connection.h>
 #include <newt/config.h>
 #include <newt/stomp.h>
+#include <newt/stomp_ctrl.h>
 #include <newt/signal.h>
 #include <newt/common.h>
 #include <newt/logger.h>
@@ -9,18 +10,9 @@
 #include <sys/socket.h>
 
 #include <pthread.h>
+#include <assert.h>
 
-#define RECV_BUFSIZE (4096)
 #define QUEUENUM (1 << 10)
-
-/* This data structure is used only in the active connection
- * and exists one object per connection. */
-struct conninfo {
-  int sock;
-  void *protocol_data;
-  struct list_head h_buf;
-  pthread_mutex_t mutex;
-};
 
 static struct conninfo* alloc_conninfo() {
   struct conninfo *cinfo;
@@ -31,28 +23,10 @@ static struct conninfo* alloc_conninfo() {
 
     INIT_LIST_HEAD(&cinfo->h_buf);
     pthread_mutex_init(&cinfo->mutex, NULL);
+    cinfo->handler = NULL;
   }
 
   return cinfo;
-}
-
-static int cleanup_co_worker(void *data) {
-  struct conninfo *cinfo = (struct conninfo *)data;
-  int ret = RET_ERROR;
-
-  if(cinfo != NULL) {
-    close(cinfo->sock);
-
-    if(cinfo->protocol_data != NULL) {
-      free(cinfo->protocol_data);
-    }
-
-    free(cinfo);
-
-    ret = RET_SUCCESS;
-  }
-
-  return ret;
 }
 
 static int cleanup_connection(void *data) {
@@ -67,71 +41,58 @@ static int cleanup_connection(void *data) {
   return ret;
 }
 
-static void *connection_co_worker(void *data) {
-  struct conninfo *cinfo = (struct conninfo*)data;
-  sighandle_t *handler;
-  char buf[RECV_BUFSIZE];
-
-  if(cinfo == NULL) {
-    err("[connection_co_worker] thread argument is NULL");
-    return NULL;
-  }
-
-  cinfo->protocol_data = (void *)stomp_conn_init();
-
-  /* initialize processing after established connection */
-  handler = set_signal_handler(cleanup_co_worker, &cinfo);
-
-  int len;
-  do {
-    memset(buf, 0, RECV_BUFSIZE);
-    len = recv(cinfo->sock, buf, sizeof(buf), 0);
-
-    stomp_recv_data(buf, len, cinfo->sock, cinfo->protocol_data);
-  } while(len > 0);
-
-  // cancel to parse of the current frame
-  stomp_conn_finish(cinfo->protocol_data);
-
-  del_signal_handler(handler);
-
-  close(cinfo->sock);
-
-  free(cinfo);
-
-  return NULL;
-}
-
-void *connection_worker(void *data) {
-  newt_config *conf = (newt_config *)data;
+static int init_connection(char *host, int port) {
   struct sockaddr_in addr;
   int sd;
  
   if((sd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
-    perror("socket");
-    return NULL;
+    return -1;
   }
  
   addr.sin_family = AF_INET;
-  addr.sin_port = htons(conf->port);
+  addr.sin_port = htons(port);
   addr.sin_addr.s_addr = INADDR_ANY;
-  if(conf->server != NULL) {
-    addr.sin_addr.s_addr = inet_addr(conf->server);
+  if(host != NULL) {
+    addr.sin_addr.s_addr = inet_addr(host);
   }
  
   if(bind(sd, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
-    perror("bind");
-    return NULL;
+    return -1;
   }
  
   if(listen(sd, QUEUENUM) < 0) {
-    perror("listen");
-    return NULL;
+    return -1;
   }
 
   set_signal_handler(cleanup_connection, &sd);
 
-  info("NewtMQ is ready to accept requests (port: %d)", conf->port);
+  return sd;
+}
+
+static void *connection_co_worker(void *data) {
+  struct conninfo *cinfo = (struct conninfo*)data;
+  void *ret = NULL;
+
+  if(cinfo->handler != NULL) {
+    ret = cinfo->handler(cinfo);
+  }
+
+  close(cinfo->sock);
+  free(cinfo);
+
+  return ret;
+}
+
+static void *do_connection_worker(char *host, int port, void *(*handler)(struct conninfo *)) {
+  int sd;
+
+  sd = init_connection(host, port);
+  if(sd < 0) {
+    err("[connection_worker] failed to create and initialize a connection");
+    return NULL;
+  }
+
+  info("NewtMQ is ready to accept requests (port: %d)", port);
  
   struct sockaddr_in from_addr;
   socklen_t sin_size = sizeof(struct sockaddr_in);
@@ -148,14 +109,31 @@ void *connection_worker(void *data) {
     cinfo = alloc_conninfo();
     if(cinfo != NULL) {
       cinfo->sock = acc_sd;
+      cinfo->handler = handler;
 
-      if(pthread_create(&thread_id, NULL, &connection_co_worker, cinfo)) {
+      if(pthread_create(&thread_id, NULL, connection_co_worker, cinfo)) {
         err("[connection_worker] failed to create connection_co_worker");
       }
     }
   }
  
   return NULL;
+}
+
+void *ctrl_connection_worker(void *data) {
+  newt_config *conf = (newt_config *)data;
+
+  assert(conf != NULL);
+
+  do_connection_worker(conf->server, conf->ctrl_port, &stomp_ctrl_worker);
+}
+
+void *connection_worker(void *data) {
+  newt_config *conf = (newt_config *)data;
+
+  assert(conf != NULL);
+
+  do_connection_worker(conf->server, conf->port, &stomp_conn_worker);
 }
 
 int send_msg(int sock, char *msg) {

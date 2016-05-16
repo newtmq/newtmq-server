@@ -2,10 +2,12 @@
 #include <newt/common.h>
 #include <newt/signal.h>
 #include <newt/logger.h>
-
+#include <newt/connection.h>
 #include <newt/stomp_management_worker.h>
 
 #include <assert.h>
+
+#define RECV_BUFSIZE (4096)
 
 struct stomp_frame_info {
   char *name;
@@ -230,8 +232,8 @@ int stomp_init() {
   return RET_SUCCESS;
 }
 
-stomp_conninfo_t *stomp_conn_init() {
-  stomp_conninfo_t *ret;
+static stomp_conninfo_t *conn_init() {
+  stomp_conninfo_t *ret = NULL;
 
   ret = (stomp_conninfo_t *)malloc(sizeof(stomp_conninfo_t));
   if(ret != NULL) {
@@ -247,7 +249,7 @@ stomp_conninfo_t *stomp_conn_init() {
   return ret;
 }
 
-int stomp_conn_finish(void *data) {
+static int conn_finish(void *data) {
   stomp_conninfo_t *cinfo = (stomp_conninfo_t *)data;
   int ret = RET_ERROR;
 
@@ -264,14 +266,63 @@ int stomp_conn_finish(void *data) {
   return ret;
 }
 
-static int do_stomp_recv_data(char *line, int len, int sock, void *_cinfo) {
+static int cleanup_worker(void *data) {
+  struct conninfo *cinfo = (struct conninfo *)data;
+  int ret = RET_ERROR;
+
+  if(cinfo != NULL) {
+    close(cinfo->sock);
+
+    if(cinfo->protocol_data != NULL) {
+      free(cinfo->protocol_data);
+    }
+
+    free(cinfo);
+
+    ret = RET_SUCCESS;
+  }
+
+  return ret;
+}
+
+void *stomp_conn_worker(struct conninfo *cinfo) {
+  sighandle_t *handler;
+  char buf[RECV_BUFSIZE];
+
+  if(cinfo == NULL) {
+    err("[connection_co_worker] thread argument is NULL");
+    return NULL;
+  }
+
+  cinfo->protocol_data = (void *)conn_init();
+
+  /* initialize processing after established connection */
+  handler = set_signal_handler(cleanup_worker, &cinfo);
+
+  int len;
+  do {
+    memset(buf, 0, RECV_BUFSIZE);
+    len = recv(cinfo->sock, buf, sizeof(buf), 0);
+
+    recv_data(buf, len, cinfo->sock, cinfo->protocol_data);
+  } while(len > 0);
+
+  // cancel to parse of the current frame
+  conn_finish(cinfo->protocol_data);
+
+  del_signal_handler(handler);
+
+  return NULL;
+}
+
+static int do_recv_data(char *line, int len, int sock, void *_cinfo) {
   stomp_conninfo_t *cinfo = (stomp_conninfo_t *)_cinfo;
 
   if(cinfo == NULL || (cinfo->frame == NULL && len == 0)) {
     return RET_ERROR;
   }
 
-  debug("(do_stomp_recv_data) %s [%d]", line, len);
+  debug("(do_recv_data) %s [%d]", line, len);
 
   if(IS_BL(line) || IS_NL(line)) {
     if(frame_update(line, len, cinfo->frame) > 0) {
@@ -292,7 +343,7 @@ static int do_stomp_recv_data(char *line, int len, int sock, void *_cinfo) {
       }
 
       if(strncmp(line, finfo->name, finfo->len) == 0) {
-        debug("(stomp_recv_data) <matched %s [%d]>", finfo->name, finfo->len);
+        debug("(recv_data) <matched %s [%d]>", finfo->name, finfo->len);
         frame_finish(cinfo->frame);
         cinfo->frame = NULL;
         break;
@@ -303,7 +354,7 @@ static int do_stomp_recv_data(char *line, int len, int sock, void *_cinfo) {
   if(cinfo->frame == NULL) {
     frame_t *frame = alloc_frame(sock);
     if(frame == NULL) {
-      perror("[stomp_recv_data] failed to allocate memory");
+      perror("[recv_data] failed to allocate memory");
       return RET_ERROR;
     }
 
@@ -311,7 +362,7 @@ static int do_stomp_recv_data(char *line, int len, int sock, void *_cinfo) {
     frame->sock = sock;
     frame->cinfo = cinfo;
 
-    /* to reference this values over the 'stomp_recv_data' calling */
+    /* to reference this values over the 'recv_data' calling */
     cinfo->frame = frame;
   }
   
@@ -323,7 +374,7 @@ static int do_stomp_recv_data(char *line, int len, int sock, void *_cinfo) {
   return RET_SUCCESS;
 }
 
-int stomp_recv_data(char *recv_data, int len, int sock, void *_cinfo) {
+int recv_data(char *recv_data, int len, int sock, void *_cinfo) {
   stomp_conninfo_t *cinfo = (stomp_conninfo_t *)_cinfo;
   char *curr, *next, *end;
 
@@ -371,7 +422,7 @@ int stomp_recv_data(char *recv_data, int len, int sock, void *_cinfo) {
       cinfo->line_buf[1] = '\0';
     }
 
-    do_stomp_recv_data(cinfo->line_buf, line_len + line_prefix, sock, _cinfo);
+    do_recv_data(cinfo->line_buf, line_len + line_prefix, sock, _cinfo);
 
     curr = next + 1;
   }

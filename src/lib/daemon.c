@@ -8,6 +8,7 @@
 
 enum ThreadWorkerName {
   CONNECTION_WORKER,
+  CTRL_CONNECTION_WORKER,
   STOMP_MANAGEMENT_WORKER,
   WorkerLength,
 };
@@ -36,6 +37,7 @@ int daemon_start(newt_config config) {
   pthread_t worker_ids[WorkerLength];
   thread_info_t workers[] = {
     {connection_worker, &config},
+    {ctrl_connection_worker, &config},
     {stomp_management_worker, NULL},
   };
   int i;
