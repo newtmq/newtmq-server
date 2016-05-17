@@ -1,7 +1,7 @@
 #include <newt/connection.h>
 #include <newt/config.h>
 #include <newt/stomp.h>
-#include <newt/stomp_ctrl.h>
+#include <newt/newtctl.h>
 #include <newt/signal.h>
 #include <newt/common.h>
 #include <newt/logger.h>
@@ -125,7 +125,7 @@ void *ctrl_connection_worker(void *data) {
 
   assert(conf != NULL);
 
-  do_connection_worker(conf->server, conf->ctrl_port, &stomp_ctrl_worker);
+  do_connection_worker(conf->server, conf->ctrl_port, &newtctl_worker);
 }
 
 void *connection_worker(void *data) {

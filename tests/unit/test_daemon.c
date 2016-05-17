@@ -9,10 +9,12 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 
-#define PORT_NUM 12346
+#define DATA_PORT 12346
+#define CTRL_PORT 12347
 
 static void init_newt_config(newt_config *config) {
-  config->port = PORT_NUM;
+  config->port = DATA_PORT;
+  config->ctrl_port = CTRL_PORT;
 }
 
 static void check_daemon(void) {

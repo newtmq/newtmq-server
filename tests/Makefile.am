@@ -5,6 +5,7 @@ newt_test_SOURCES = test.c \
                     client.c \
                     daemon.c \
                     config.c \
+                    newtctl/test_worker.c \
                     unit/test_optparse.c \
                     unit/test_config.c \
                     unit/test_stomp.c \

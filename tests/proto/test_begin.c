@@ -21,11 +21,11 @@ static void test_begin(void) {
 
   for(i=0; msg[i] != NULL; i++) {
     len = send(sock, msg[i], strlen(msg[i]), 0);
-    assert(len > 0);
+    CU_ASSERT(len > 0);
   }
   send(sock, "\0", 1, 0);
 
-  sleep(2);
+  sleep(0.5);
 
   /* check not to receive ERROR frame */
   len = recv(sock, buf, sizeof(buf), MSG_DONTWAIT);

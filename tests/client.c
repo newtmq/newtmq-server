@@ -22,6 +22,18 @@ int connect_server() {
   return sock;
 }
 
+int connect_ctrl_server() {
+  newt_config config = {0};
+  int sock = -1;
+
+  set_config(&config);
+  if(config.port > 0) {
+    sock = open_connection(config.ctrl_port);
+  }
+
+  return sock;
+}
+
 int stomp_connect(int sock) {
   char buf[512];
   char *msg[] = {

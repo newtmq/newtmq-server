@@ -8,6 +8,8 @@ lib_newt_a_SOURCES = optparse.c \
                      logger.c \
                      connection.c \
                      transaction.c \
+                     newtctl.c \
+                     newtctl_commands.c \
                      stomp_proto_connect.c \
                      stomp_proto_disconnect.c \
                      stomp_proto_send.c \
@@ -19,5 +21,4 @@ lib_newt_a_SOURCES = optparse.c \
                      stomp_proto_abort.c \
                      stomp_proto_commit.c \
                      stomp_worker_management.c \
-                     stomp_ctrl.c \
                      stomp.c
