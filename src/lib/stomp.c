@@ -190,7 +190,7 @@ static int frame_update(char *line, int len, frame_t *frame) {
   } else if(IS_NL(line)) {
     /* The case of blankline is inputed */
     if(GET(frame, STATUS_INPUT_HEADER)) {
-      if(strcmp(frame->name, "SEND") == 0 || strcmp(frame->name, "MESSAGE") == 0) {
+      if(strncmp(frame->name, "SEND", 4) == 0 || strncmp(frame->name, "MESSAGE", 7) == 0) {
         CLR(frame);
         SET(frame, STATUS_INPUT_BODY);
       } else {

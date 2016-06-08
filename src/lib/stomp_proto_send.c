@@ -5,8 +5,6 @@
 
 #include <assert.h>
 
-#define QNAME_LENGTH (256)
-
 struct attrinfo_t {
   char *qname;
   char *tid;
