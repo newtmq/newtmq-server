@@ -136,7 +136,7 @@ int iterate_header(struct list_head *h_header, stomp_header_handler_t *handlers,
 
     for(i=0; h=&handlers[i], h->name!=NULL; i++) {
       if(strncmp(line->data, h->name, strlen(h->name)) == 0) {
-        int ret = (*h->handler)((line->data + strlen(h->name)), data);
+        int ret = (*h->handler)((line->data + strlen(h->name)), data, line);
         if(ret == RET_ERROR) {
           return RET_ERROR;
         }
@@ -162,26 +162,4 @@ void *stomp_management_worker(void *data) {
   }
 
   return NULL;
-}
-
-stomp_msginfo_t *alloc_msginfo() {
-  stomp_msginfo_t *ret;
-
-  ret = (stomp_msginfo_t *)malloc(sizeof(stomp_msginfo_t));
-  if(ret == NULL) {
-    err("[alloc_msginfo] failed to allocate memory");
-    return NULL;
-  }
-
-  /* Initialize object */
-  memset(ret, 0, sizeof(stomp_msginfo_t));
-  INIT_LIST_HEAD(&ret->list);
-
-  return ret;
-}
-
-void free_msginfo(stomp_msginfo_t *msginfo) {
-  if(msginfo != NULL) {
-    free(msginfo);
-  }
 }

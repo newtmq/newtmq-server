@@ -15,20 +15,6 @@ struct test_data {
 };
 struct test_data data_arr[DATALEN];
 
-static void gen_random(char *s, const int len) {
-  static const char alphanum[] = 
-    "0123456789"
-    "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-    "abcdefghijklmnopqrstuvwxyz";
-  int i;
-  
-  for (i=0; i<len; i++) {
-    s[i] = alphanum[rand() % (sizeof(alphanum) - 1)];
-  }
-  
-  s[len] = 0;
-}
-
 static void check_init(void) {
   CU_ASSERT(initialize_queuebox() == RET_SUCCESS);
 }

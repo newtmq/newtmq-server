@@ -1,6 +1,7 @@
 noinst_LIBRARIES = lib_newt.a
 lib_newt_a_CFLAGS  = -I../include $(CFLAGS)
 lib_newt_a_SOURCES = optparse.c \
+                     common.c \
                      config.c \
                      signal.c \
                      queue.c \

@@ -13,7 +13,7 @@ typedef struct authinfo {
   char *passwd;
 } authinfo_t;
 
-static int handler_login(char *context, void *data) {
+static int handler_login(char *context, void *data, linedata_t *_hdr) {
   authinfo_t *authinfo = (authinfo_t *)data;
   if(authinfo != NULL) {
     authinfo->userid = context;
@@ -22,7 +22,7 @@ static int handler_login(char *context, void *data) {
   return RET_SUCCESS;
 }
 
-static int handler_passcode(char *context, void *data) {
+static int handler_passcode(char *context, void *data, linedata_t *_hdr) {
   authinfo_t *authinfo = (authinfo_t *)data;
   if(authinfo != NULL) {
     authinfo->passwd = context;
@@ -74,6 +74,8 @@ frame_t *handler_stomp_connect(frame_t *frame) {
   debug("(handler_stomp_connect) passwd: %s", auth.passwd);
 
   send_connected_msg(frame->sock);
+
+  debug("(handler_stomp_connect) finish");
 
   return NULL;
 }

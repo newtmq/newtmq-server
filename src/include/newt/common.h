@@ -11,4 +11,6 @@
 #define SET(obj, value) (obj->status |= value)
 #define CLR(obj) (obj->status = 0)
 
+void gen_random(char *, const int);
+
 #endif

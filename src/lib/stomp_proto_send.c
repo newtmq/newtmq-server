@@ -5,10 +5,13 @@
 
 #include <assert.h>
 
+#define UNIQUE_STR_LEN 10
+
 struct attrinfo_t {
   char *qname;
   char *tid;
   char *receipt_id;
+  char *reply_to;
 };
 
 static int transaction_callback(frame_t *frame) {
@@ -23,7 +26,7 @@ static int transaction_callback(frame_t *frame) {
   return ret;
 }
 
-static int handler_destination(char *context, void *data) {
+static int handler_destination(char *context, void *data, linedata_t *_hdr) {
   struct attrinfo_t *attrinfo = (struct attrinfo_t *)data;
   int ret = RET_ERROR;
 
@@ -36,7 +39,7 @@ static int handler_destination(char *context, void *data) {
   return ret;
 }
 
-static int handler_transaction(char *context, void *data) {
+static int handler_transaction(char *context, void *data, linedata_t *_hdr) {
   struct attrinfo_t *attrinfo = (struct attrinfo_t *)data;
   int ret = RET_ERROR;
 
@@ -49,7 +52,7 @@ static int handler_transaction(char *context, void *data) {
   return ret;
 }
 
-static int handler_receipt(char *context, void *data) {
+static int handler_receipt(char *context, void *data, linedata_t *_hdr) {
   struct attrinfo_t *attrinfo = (struct attrinfo_t *)data;
   int ret = RET_ERROR;
 
@@ -62,10 +65,29 @@ static int handler_receipt(char *context, void *data) {
   return ret;
 }
 
+static int handler_reply_to(char *context, void *data, linedata_t *hdr) {
+  struct attrinfo_t *attrinfo = (struct attrinfo_t *)data;
+  int context_len = (int)strlen(context);
+  int ret = RET_ERROR;
+
+  assert(attrinfo != NULL);
+
+  if(context_len + UNIQUE_STR_LEN < LD_MAX) {
+    attrinfo->reply_to = context;
+
+    gen_random(hdr->data + context_len, UNIQUE_STR_LEN);
+
+    ret = RET_SUCCESS;
+  }
+
+  return ret;
+}
+
 static stomp_header_handler_t handlers[] = {
   {"destination:", handler_destination},
   {"transaction:", handler_transaction},
   {"receipt:", handler_receipt},
+  {"reply-to:", handler_reply_to},
   {0},
 };
 

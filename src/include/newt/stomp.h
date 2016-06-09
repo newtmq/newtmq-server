@@ -10,6 +10,7 @@
 #include <pthread.h>
 
 #define FNAME_LEN 64
+#define FRAME_ID_LEN 32
 #define LD_MAX (8192)
 
 /* These values specify status of making frame */
@@ -38,6 +39,7 @@ typedef struct frame_bucket_t {
 typedef struct frame_t frame_t;
 struct frame_t {
   char name[FNAME_LEN];
+  char id[FRAME_ID_LEN];
   int sock;
   unsigned int status;
   struct list_head h_attrs;
@@ -70,7 +72,7 @@ struct stomp_conninfo_t {
 
 typedef struct stomp_header_handler {
   char *name;
-  int (*handler)(char *, void *);
+  int (*handler)(char *, void *, linedata_t *);
 } stomp_header_handler_t;
 
 int stomp_init();
@@ -84,5 +86,6 @@ frame_t *get_frame_from_bucket();
 /* This is used over each STOMP handlers */
 void stomp_send_error(int, char *);
 void stomp_send_receipt(int, char *);
+void stomp_send_message(int, char *, char *);
 
 #endif

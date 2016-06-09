@@ -2,6 +2,7 @@
 #include <newt/common.h>
 #include <newt/signal.h>
 #include <newt/logger.h>
+#include <newt/queue.h>
 #include <newt/connection.h>
 #include <newt/stomp_management_worker.h>
 
@@ -42,6 +43,7 @@ frame_t *alloc_frame() {
 
   /* Initialize frame_t object */
   memset(ret->name, 0, FNAME_LEN);
+  memset(ret->id, 0, FRAME_ID_LEN);
 
   INIT_LIST_HEAD(&ret->h_attrs);
   INIT_LIST_HEAD(&ret->h_data);
@@ -169,6 +171,9 @@ static void frame_finish(frame_t *frame) {
   SET(frame, STATUS_IN_BUCKET);
 
   debug("(frame_finish) %s", frame->name);
+
+  // set frame-id
+  gen_random(frame->id, FRAME_ID_LEN);
 
   pthread_mutex_lock(&stomp_frame_bucket.mutex);
   { /* thread safe */
@@ -474,5 +479,53 @@ void stomp_send_receipt(int sock, char *id) {
     send_msg(sock, "RECEIPT\n");
     send_msg(sock, buf);
     send_msg(sock, NULL);
+  }
+}
+
+void stomp_send_message(int sock, char *qname, char *subscription) {
+  frame_t *frame;
+  int index = 0;
+  char *hdr_dest, *hdr_msgid, *hdr_sub = NULL;
+  linedata_t *body;
+
+  assert(qname != NULL);
+
+  hdr_dest = (char *)malloc(LD_MAX);
+  hdr_msgid = (char *)malloc(LD_MAX);
+  if(hdr_dest != NULL && hdr_msgid != NULL) {
+
+    if(subscription != NULL) {
+      hdr_sub = (char *)malloc(LD_MAX);
+      sprintf(hdr_sub, "subscription: %s\n", subscription);
+    }
+    sprintf(hdr_dest, "destination: %s\n", qname);
+
+    while(is_socket_valid(sock) == RET_SUCCESS) {
+
+      if((frame = (frame_t *)dequeue(qname)) != NULL) {
+        /* making message-id attribute for each message */
+        sprintf(hdr_msgid, "message-id: %s\n", frame->id);
+        debug("(send_message_worker) msg-id: %s", hdr_msgid);
+
+        send_msg(sock, "MESSAGE\n");
+        send_msg(sock, hdr_dest);
+        send_msg(sock, hdr_msgid);
+        if(hdr_sub != NULL) {
+          send_msg(sock, hdr_sub);
+        }
+        send_msg(sock, "\n");
+        list_for_each_entry(body, &frame->h_data, l_frame) {
+          send_msg(sock, body->data);
+          send_msg(sock, "\n");
+        }
+        send_msg(sock, NULL);
+
+        free_frame(frame);
+      }
+    }
+
+    free(hdr_msgid);
+    free(hdr_dest);
+    free(hdr_sub);
   }
 }
