@@ -71,10 +71,38 @@ static stomp_header_handler_t handlers[] = {
   {0},
 };
 
-void *send_message_worker(void *data) {
+static void *send_message_worker(void *data) {
   struct attrinfo_t *attrinfo = (struct attrinfo_t *)data;
+  struct list_head headers;
+  linedata_t *body;
+  frame_t *frame;
+  char *buf;
+  int len;
 
-  stomp_send_message(attrinfo->sock, attrinfo->destination, attrinfo->id);
+  INIT_LIST_HEAD(&headers);
+
+  buf = (char *)malloc(LD_MAX);
+  if(buf != NULL) {
+
+    if(attrinfo->id != NULL) {
+      len = sprintf(buf, "subscription: %s\n", attrinfo->id);
+      stomp_setdata(buf, len, &headers, NULL);
+    }
+
+    len = sprintf(buf, "destination: %s\n", attrinfo->destination);
+    stomp_setdata(buf, len, &headers, NULL);
+
+    while(is_socket_valid(attrinfo->sock) == RET_SUCCESS) {
+
+      if((frame = (frame_t *)dequeue(attrinfo->destination)) != NULL) {
+        stomp_send_message(attrinfo->sock, frame, &headers);
+
+        free_frame(frame);
+      }
+    }
+
+    free(buf);
+  }
 
   free_attrinfo(attrinfo);
 

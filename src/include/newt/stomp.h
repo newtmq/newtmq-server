@@ -42,6 +42,7 @@ struct frame_t {
   char id[FRAME_ID_LEN];
   int sock;
   unsigned int status;
+  pthread_mutex_t mutex_header;
   struct list_head h_attrs;
   struct list_head h_data;
   struct list_head l_bucket;
@@ -58,7 +59,7 @@ struct frame_t {
 /* This describes a Frame attribute */
 typedef struct linedata_t {
   char data[LD_MAX];
-  struct list_head l_frame;
+  struct list_head list;
 } linedata_t;
 
 /* This is alive during connection is active */
@@ -86,6 +87,7 @@ frame_t *get_frame_from_bucket();
 /* This is used over each STOMP handlers */
 void stomp_send_error(int, char *);
 void stomp_send_receipt(int, char *);
-void stomp_send_message(int, char *, char *);
+void stomp_send_message(int, frame_t *, struct list_head *);
+int stomp_setdata(char *, int, struct list_head *, pthread_mutex_t *);
 
 #endif

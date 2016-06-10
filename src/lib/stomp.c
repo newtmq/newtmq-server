@@ -50,6 +50,8 @@ frame_t *alloc_frame() {
   INIT_LIST_HEAD(&ret->l_bucket);
   INIT_LIST_HEAD(&ret->l_transaction);
 
+  pthread_mutex_init(&ret->mutex_header, NULL);
+
   ret->sock = 0;
   ret->cinfo = NULL;
   ret->status = STATUS_BORN;
@@ -65,14 +67,14 @@ void free_frame(frame_t *frame) {
 
   /* delete header */
   if(! list_empty(&frame->h_attrs)) {
-    list_for_each_entry_safe(data, l, &frame->h_attrs, l_frame) {
+    list_for_each_entry_safe(data, l, &frame->h_attrs, list) {
       free(data);
     }
   }
 
   /* delete body */
   if(! list_empty(&frame->h_data)) {
-    list_for_each_entry_safe(data, l, &frame->h_data, l_frame) {
+    list_for_each_entry_safe(data, l, &frame->h_data, list) {
       free(data);
     }
   }
@@ -125,7 +127,7 @@ static void frame_setname(char *data, int len, frame_t *frame) {
   SET(frame, STATUS_INPUT_NAME);
 }
 
-static int frame_setdata(char *data, int len, struct list_head *head) {
+int stomp_setdata(char *data, int len, struct list_head *head, pthread_mutex_t *lock) {
   linedata_t *attr;
   int attrlen = len;
 
@@ -141,11 +143,17 @@ static int frame_setdata(char *data, int len, struct list_head *head) {
 
   memset(attr, 0, sizeof(linedata_t));
   memcpy(attr->data, data, attrlen);
-  INIT_LIST_HEAD(&attr->l_frame);
+  INIT_LIST_HEAD(&attr->list);
 
-  list_add_tail(&attr->l_frame, head);
+  if(lock != NULL) {
+    pthread_mutex_lock(lock);
 
-  debug("(frame_setdata) attr-data > %s [%d]", attr->data, attrlen);
+    list_add_tail(&attr->list, head);
+
+    pthread_mutex_unlock(lock);
+  } else {
+    list_add_tail(&attr->list, head);
+  }
 
   return RET_SUCCESS;
 }
@@ -216,12 +224,12 @@ static int frame_update(char *line, int len, frame_t *frame) {
       DEL(frame, STATUS_INPUT_NAME);
       SET(frame, STATUS_INPUT_HEADER);
 
-      frame_setdata(line, len, &frame->h_attrs);
+      stomp_setdata(line, len, &frame->h_attrs, &frame->mutex_header);
     } else if(GET(frame, STATUS_INPUT_HEADER)) {
-      frame_setdata(line, len, &frame->h_attrs);
+      stomp_setdata(line, len, &frame->h_attrs, &frame->mutex_header);
     } else if(GET(frame, STATUS_INPUT_BODY)) {
       debug("(frame_update) (setdata) >> %s [%d]", line, len);
-      frame_setdata(line, len, &frame->h_data);
+      stomp_setdata(line, len, &frame->h_data, &frame->mutex_header);
     }
   }
 
@@ -482,50 +490,30 @@ void stomp_send_receipt(int sock, char *id) {
   }
 }
 
-void stomp_send_message(int sock, char *qname, char *subscription) {
-  frame_t *frame;
-  int index = 0;
-  char *hdr_dest, *hdr_msgid, *hdr_sub = NULL;
+void stomp_send_message(int sock, frame_t *frame, struct list_head *headers) {
+  linedata_t *header;
   linedata_t *body;
 
-  assert(qname != NULL);
+  send_msg(sock, "MESSAGE\n");
 
-  hdr_dest = (char *)malloc(LD_MAX);
-  hdr_msgid = (char *)malloc(LD_MAX);
-  if(hdr_dest != NULL && hdr_msgid != NULL) {
-
-    if(subscription != NULL) {
-      hdr_sub = (char *)malloc(LD_MAX);
-      sprintf(hdr_sub, "subscription: %s\n", subscription);
-    }
-    sprintf(hdr_dest, "destination: %s\n", qname);
-
-    while(is_socket_valid(sock) == RET_SUCCESS) {
-
-      if((frame = (frame_t *)dequeue(qname)) != NULL) {
-        /* making message-id attribute for each message */
-        sprintf(hdr_msgid, "message-id: %s\n", frame->id);
-        debug("(send_message_worker) msg-id: %s", hdr_msgid);
-
-        send_msg(sock, "MESSAGE\n");
-        send_msg(sock, hdr_dest);
-        send_msg(sock, hdr_msgid);
-        if(hdr_sub != NULL) {
-          send_msg(sock, hdr_sub);
-        }
-        send_msg(sock, "\n");
-        list_for_each_entry(body, &frame->h_data, l_frame) {
-          send_msg(sock, body->data);
-          send_msg(sock, "\n");
-        }
-        send_msg(sock, NULL);
-
-        free_frame(frame);
-      }
-    }
-
-    free(hdr_msgid);
-    free(hdr_dest);
-    free(hdr_sub);
+  list_for_each_entry(header, headers, list) {
+    send_msg(sock, header->data);
+    send_msg(sock, "\n");
   }
+
+  // send static headers
+  {
+    send_msg(sock, "message-id: ");
+    send_msg(sock, frame->id);
+    send_msg(sock, "\n");
+  }
+
+  // separation of headers and body
+  send_msg(sock, "\n");
+
+  list_for_each_entry(body, &frame->h_data, list) {
+    send_msg(sock, body->data);
+    send_msg(sock, "\n");
+  }
+  send_msg(sock, NULL);
 }

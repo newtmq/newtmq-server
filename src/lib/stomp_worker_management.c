@@ -130,7 +130,7 @@ subscribe_t *get_subscriber(char *id) {
 int iterate_header(struct list_head *h_header, stomp_header_handler_t *handlers, void *data) {
   linedata_t *line;
 
-  list_for_each_entry(line, h_header, l_frame) {
+  list_for_each_entry(line, h_header, list) {
     stomp_header_handler_t *h;
     int i;
 
