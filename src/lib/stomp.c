@@ -7,6 +7,7 @@
 #include <newt/stomp_management_worker.h>
 
 #include <assert.h>
+#include <sys/ioctl.h>
 
 #define RECV_BUFSIZE (4096)
 
@@ -314,11 +315,22 @@ void *stomp_conn_worker(struct conninfo *cinfo) {
 
   int len;
   do {
+    stomp_conninfo_t *stomp_cinfo = (stomp_conninfo_t *)cinfo->protocol_data;
+    frame_t *frame = stomp_cinfo->frame;
+
     memset(buf, 0, RECV_BUFSIZE);
+
+    ioctl(cinfo->sock, FIONREAD, &len);
+
+    if(len == 0 && frame != NULL && GET(frame, STATUS_INPUT_BODY)) {
+      frame_finish(frame);
+      stomp_cinfo->frame = NULL;
+    }
+
     len = recv(cinfo->sock, buf, sizeof(buf), 0);
 
     recv_data(buf, len, cinfo->sock, cinfo->protocol_data);
-  } while(len > 0);
+  } while(len != 0);
 
   // cancel to parse of the current frame
   conn_finish(cinfo->protocol_data);
@@ -393,6 +405,7 @@ int recv_data(char *recv_data, int len, int sock, void *_cinfo) {
 
   curr = recv_data;
   end = (recv_data + len - 1);
+
   while(curr <= end) {
     int line_len;
     int line_prefix = 0;
@@ -496,9 +509,16 @@ void stomp_send_message(int sock, frame_t *frame, struct list_head *headers) {
 
   send_msg(sock, "MESSAGE\n");
 
-  list_for_each_entry(header, headers, list) {
+  list_for_each_entry(header, &frame->h_attrs, list) {
     send_msg(sock, header->data);
     send_msg(sock, "\n");
+  }
+
+  if(headers != NULL) {
+    list_for_each_entry(header, headers, list) {
+      send_msg(sock, header->data);
+      send_msg(sock, "\n");
+    }
   }
 
   // send static headers
@@ -513,7 +533,6 @@ void stomp_send_message(int sock, frame_t *frame, struct list_head *headers) {
 
   list_for_each_entry(body, &frame->h_data, list) {
     send_msg(sock, body->data);
-    send_msg(sock, "\n");
   }
   send_msg(sock, NULL);
 }

@@ -22,3 +22,7 @@ stamp-h1
 .dirstamp
 *.conf
 core
+GPATH
+GRTAGS
+GSYMS
+GTAGS

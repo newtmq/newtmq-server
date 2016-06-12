@@ -14,55 +14,28 @@ struct attrinfo_t {
   char *reply_to;
 };
 
-static int transaction_callback(frame_t *frame) {
-  int ret = RET_ERROR;
-
-  if(frame != NULL && frame->transaction_data != NULL) {
-    enqueue((void *)frame, (char *)frame->transaction_data);
-
-    ret = RET_SUCCESS;
-  }
-
-  return ret;
-}
-
 static int handler_destination(char *context, void *data, linedata_t *_hdr) {
   struct attrinfo_t *attrinfo = (struct attrinfo_t *)data;
-  int ret = RET_ERROR;
 
-  if(attrinfo != NULL) {
-    attrinfo->qname = context;
+  attrinfo->qname = context;
 
-    ret = RET_SUCCESS;
-  }
-
-  return ret;
+  return RET_SUCCESS;
 }
 
 static int handler_transaction(char *context, void *data, linedata_t *_hdr) {
   struct attrinfo_t *attrinfo = (struct attrinfo_t *)data;
-  int ret = RET_ERROR;
 
-  if(attrinfo != NULL) {
-    attrinfo->tid = context;
+  attrinfo->tid = context;
 
-    ret = RET_SUCCESS;
-  }
-
-  return ret;
+  return RET_SUCCESS;
 }
 
 static int handler_receipt(char *context, void *data, linedata_t *_hdr) {
   struct attrinfo_t *attrinfo = (struct attrinfo_t *)data;
-  int ret = RET_ERROR;
 
-  if(attrinfo != NULL) {
-    attrinfo->receipt_id = context;
+  attrinfo->receipt_id = context;
 
-    ret = RET_SUCCESS;
-  }
-
-  return ret;
+  return RET_SUCCESS;
 }
 
 static int handler_reply_to(char *context, void *data, linedata_t *hdr) {
@@ -75,7 +48,7 @@ static int handler_reply_to(char *context, void *data, linedata_t *hdr) {
   if(context_len + UNIQUE_STR_LEN < LD_MAX) {
     attrinfo->reply_to = context;
 
-    gen_random(hdr->data + context_len, UNIQUE_STR_LEN);
+    gen_random(context + context_len, UNIQUE_STR_LEN);
 
     ret = RET_SUCCESS;
   }
@@ -101,6 +74,10 @@ frame_t *handler_stomp_send(frame_t *frame) {
     err("(handle_stomp_send) validation error");
     stomp_send_error(frame->sock, "failed to validate header\n");
     return NULL;
+  }
+
+  if(attrinfo.reply_to != NULL) {
+    stomp_sending_register(frame->sock, attrinfo.reply_to, NULL);
   }
 
   if(attrinfo.qname == NULL) {
