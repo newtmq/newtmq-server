@@ -11,7 +11,9 @@ static void test_disconnect(void) {
   char buf[512];
   char *msg[] = {
     "DISCONNECT\n",
+    "content-length:0\n"
     "receipt:test-1\n",
+    "\n",
     NULL,
   };
   int sock, len, i;

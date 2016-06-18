@@ -11,7 +11,9 @@ static void test_begin(void) {
   char buf[512];
   char *msg[] = {
     "BEGIN\n",
+    "content-length:0\n",
     "transaction:tx1\n",
+    "\n",
     NULL,
   };
   int sock, len, i;

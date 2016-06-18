@@ -136,6 +136,8 @@ static int frame_setname(char *data, int len, frame_t *frame) {
   for(i=0; finfo=&finfo_arr[i], finfo!=NULL; i++) {
     if(len < finfo->len) {
       continue;
+    } else if(finfo->name == NULL) {
+      break;
     }
 
     if(strncmp(data, finfo->name, finfo->len) == 0) {
@@ -279,7 +281,7 @@ static int frame_update(char *line, int len, stomp_conninfo_t *cinfo) {
 
   if(GET(frame, STATUS_BORN)) {
     if(frame_setname(line, len, frame) == RET_ERROR) {
-      warn("[frame_update] failed to set frame name");
+      return -1;
     }
     debug("[frame_update] (%p) succeed in setting frame-name: %s", frame, frame->name);
   } else if(GET(frame, STATUS_INPUT_HEADER)) {
@@ -515,7 +517,12 @@ int recv_data(char *recv_data, int len, int sock, void *_cinfo) {
     if(ret == RET_ERROR && is_frame_name(curr, line_len) == RET_ERROR) {
       debug("[recv_data] broken_line: %s [%d]", curr, line_len);
 
-      char *data = malloc(LD_MAX);
+      char *data;
+      if(cinfo->prev_data != NULL) {
+        data = realloc(cinfo->prev_data, cinfo->prev_len + LD_MAX);
+      } else {
+        data = malloc(LD_MAX);
+      }
 
       memset(data, 0, LD_MAX);
       strncpy(data, curr, line_len);
@@ -528,6 +535,10 @@ int recv_data(char *recv_data, int len, int sock, void *_cinfo) {
 
     // set next position because following processing may change 'line_len' variable
     if(cinfo->frame != NULL && GET(cinfo->frame, STATUS_INPUT_BODY)) {
+      if(IS_NL(curr) || IS_BL(curr)) {
+        line_len = 1;
+      }
+
       next = curr + line_len;
       body_input = 1;
     } else {
@@ -551,11 +562,15 @@ int recv_data(char *recv_data, int len, int sock, void *_cinfo) {
     if(cinfo->frame != NULL || line_len > 0) {
       prepare_frame(cinfo, sock);
 
-      if(frame_update(line, line_len, cinfo) > 0) {
+      ret = frame_update(line, line_len, cinfo);
+      debug("[frame_update] (ret/frame_update) %d", ret);
+      if(ret > 0) {
         cinfo->frame = NULL;
         if(body_input > 0) {
           next++;
         }
+      } else if(ret < 0) {
+        stomp_send_error(sock, "failed to parse frame");
       }
 
       if(cinfo->frame != NULL) {

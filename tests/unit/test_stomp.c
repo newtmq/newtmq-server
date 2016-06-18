@@ -12,6 +12,7 @@
 
 static void test_initialize(void) {
   char *inputs[] = { "CONNECT\n", \
+                     "content-length:0", \
                      "accept-version:1.2\n", \
                      "login:guest\n", \
                      "passcode:guest\n", \
@@ -36,7 +37,7 @@ static void test_initialize(void) {
 
     CU_ASSERT(recv_data(buf, strlen(buf), STDOUT, c_info) == RET_SUCCESS);
 
-    if(strcmp(inputs[i], "\n") == 0 || strcmp(inputs[i], "\0") == 0) {
+    if(strcmp(inputs[i], "\0") == 0 || strcmp(inputs[i], "\n") == 0) {
       CU_ASSERT(c_info->frame == NULL);
     } else {
       CU_ASSERT(c_info->frame != NULL);
