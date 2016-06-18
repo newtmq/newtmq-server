@@ -9,9 +9,9 @@
 #include <string.h>
 #include <pthread.h>
 
-#define FNAME_LEN 64
+#define FNAME_LEN 12
 #define FRAME_ID_LEN 32
-#define LD_MAX (8192)
+#define LD_MAX (60)
 
 /* These values specify status of making frame */
 #define STATUS_BORN         (1 << 0)
@@ -42,7 +42,10 @@ struct frame_t {
   char id[FRAME_ID_LEN];
   int sock;
   unsigned int status;
+  int contentlen; // content length which is specified in header
+  int has_contentlen; // content length which is actually read
   pthread_mutex_t mutex_header;
+  pthread_mutex_t mutex_body;
   struct list_head h_attrs;
   struct list_head h_data;
   struct list_head l_bucket;
@@ -66,9 +69,9 @@ typedef struct linedata_t {
 struct stomp_conninfo_t {
   int status;
   frame_t *frame;
-  char line_buf[LD_MAX];
-  char *remained_data;
-  int remained_size;
+  linedata_t *broken_attr, *prev_attr;
+  char *prev_data;
+  int prev_len;
 };
 
 typedef struct stomp_header_handler {
@@ -88,6 +91,6 @@ frame_t *get_frame_from_bucket();
 void stomp_send_error(int, char *);
 void stomp_send_receipt(int, char *);
 void stomp_send_message(int, frame_t *, struct list_head *);
-int stomp_setdata(char *, int, struct list_head *, pthread_mutex_t *);
+linedata_t *stomp_setdata(char *, int, struct list_head *, pthread_mutex_t *);
 
 #endif

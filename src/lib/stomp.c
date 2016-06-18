@@ -16,11 +16,11 @@ struct stomp_frame_info {
   int len;
 };
 static struct stomp_frame_info finfo_arr[] = {
-  {"ACK",         3},
   {"SEND",        4},
   {"SUBSCRIBE",   9},
   {"CONNECT",     7},
   {"STOMP",       5},
+  {"ACK",         3},
   {"BEGIN",       5},
   {"COMMIT",      6},
   {"ABORT",       5},
@@ -34,8 +34,6 @@ frame_bucket_t stomp_frame_bucket;
 
 frame_t *alloc_frame() {
   frame_t *ret;
-
-  debug("(alloc_frame)");
 
   ret = (frame_t *)malloc(sizeof(frame_t));
   if(ret == NULL) {
@@ -52,10 +50,13 @@ frame_t *alloc_frame() {
   INIT_LIST_HEAD(&ret->l_transaction);
 
   pthread_mutex_init(&ret->mutex_header, NULL);
+  pthread_mutex_init(&ret->mutex_body, NULL);
 
   ret->sock = 0;
   ret->cinfo = NULL;
   ret->status = STATUS_BORN;
+  ret->contentlen = -1;
+  ret->has_contentlen = 0;
 
   ret->transaction_callback = NULL;
   ret->transaction_data = NULL;
@@ -69,6 +70,7 @@ void free_frame(frame_t *frame) {
   /* delete header */
   if(! list_empty(&frame->h_attrs)) {
     list_for_each_entry_safe(data, l, &frame->h_attrs, list) {
+      list_del(&data->list);
       free(data);
     }
   }
@@ -76,6 +78,7 @@ void free_frame(frame_t *frame) {
   /* delete body */
   if(! list_empty(&frame->h_data)) {
     list_for_each_entry_safe(data, l, &frame->h_data, list) {
+      list_del(&data->list);
       free(data);
     }
   }
@@ -95,68 +98,97 @@ void free_frame(frame_t *frame) {
   free(frame);
 }
 
-char *ssplit(char *str, char *end) {
-  char *curr = str;
+static int ssplit(char *start, char *end, int *len) {
+  char *p;
+  int count = 0;
+  int ret = RET_SUCCESS;
 
-  assert(curr != NULL);
+  assert(start != NULL);
+  assert(end != NULL);
 
-  while(! (*curr == '\n' || *curr == '\0')) {
-    if(curr >= end) {
-      char debug_buf[LD_MAX] = {0};
+  if(IS_NL(start) || IS_BL(start)) {
+    *len = 0;
 
-      memcpy(debug_buf, str, (int)(end - str));
+    return RET_SUCCESS;
+  }
+
+  do {
+    count++;
+    p = start + count;
+
+    if(p >= end) {
+      debug("[ssplit] line is separated");
+      ret = RET_ERROR;
+    }
+  } while(! (*p == '\0' || *p == '\n' || p >= end || count >= LD_MAX));
+
+  *len = count;
+
+  return ret;
+}
+
+static int frame_setname(char *data, int len, frame_t *frame) {
+  int i, ret = RET_ERROR;
+  struct stomp_frame_info *finfo;
+
+  assert(frame != NULL);
+
+  for(i=0; finfo=&finfo_arr[i], finfo!=NULL; i++) {
+    if(len < finfo->len) {
+      continue;
+    }
+
+    if(strncmp(data, finfo->name, finfo->len) == 0) {
+      memcpy(frame->name, data, finfo->len);
+
+      CLR(frame);
+      SET(frame, STATUS_INPUT_HEADER);
+
+      ret = RET_SUCCESS;
+      break;
+    }
+  }
+
+  return ret;
+}
+
+linedata_t *stomp_setdata(char *data, int len, struct list_head *head, pthread_mutex_t *lock) {
+  linedata_t *attr;
+  int offset = 0;
+  int attrlen = len;
+
+  do {
+    if(attrlen > LD_MAX) {
+      attrlen = LD_MAX;
+    }
+
+    debug("[stomp_setdata] (%d + %d) %s", len, offset, data);
+
+    attr = (linedata_t *)malloc(sizeof(linedata_t));
+    if(attr == NULL) {
+      warn("failed to allocate linedata_t");
       return NULL;
     }
 
-    curr++;
-  }
+    memset(attr, 0, sizeof(linedata_t));
+    memcpy(attr->data, data + offset, attrlen);
+    INIT_LIST_HEAD(&attr->list);
 
-  return curr;
-}
+    if(lock != NULL) {
+      pthread_mutex_lock(lock);
 
-static void frame_setname(char *data, int len, frame_t *frame) {
-  int namelen = len;
+      list_add_tail(&attr->list, head);
 
-  debug("(frame_setname) name: %s [%d]", data, len);
+      pthread_mutex_unlock(lock);
+    } else {
+      list_add_tail(&attr->list, head);
+    }
 
-  if(namelen > FNAME_LEN) {
-    namelen = FNAME_LEN;
-  }
-  memcpy(frame->name, data, namelen);
+    offset += attrlen;
+    attrlen = len - offset;
+  } while(offset < len);
 
-  CLR(frame);
-  SET(frame, STATUS_INPUT_NAME);
-}
-
-int stomp_setdata(char *data, int len, struct list_head *head, pthread_mutex_t *lock) {
-  linedata_t *attr;
-  int attrlen = len;
-
-  if(attrlen > LD_MAX) {
-    attrlen = LD_MAX;
-  }
-
-  attr = (linedata_t *)malloc(sizeof(linedata_t));
-  if(attr == NULL) {
-    warn("failed to allocate linedata_t");
-    return RET_ERROR;
-  }
-
-  memset(attr, 0, sizeof(linedata_t));
-  memcpy(attr->data, data, attrlen);
-  INIT_LIST_HEAD(&attr->list);
-
-  if(lock != NULL) {
-    pthread_mutex_lock(lock);
-
-    list_add_tail(&attr->list, head);
-
-    pthread_mutex_unlock(lock);
-  } else {
-    list_add_tail(&attr->list, head);
-  }
-
-  return RET_SUCCESS;
+  return attr;
 }
 
 static int cleanup(void *data) {
@@ -184,6 +216,44 @@ static void frame_finish(frame_t *frame) {
   // set frame-id
   gen_random(frame->id, FRAME_ID_LEN);
 
+  // correct broken header
+  /*
+  linedata_t *broken, *prev;
+  broken = prev = NULL;
+  pthread_mutex_lock(&frame->mutex_header);
+  {
+    linedata_t *header, *h;
+    list_for_each_entry_safe(header, h, &frame->h_attrs, list) {
+      debug("[frame_finish] (check) %s", header->data);
+      if(broken != NULL) {
+        sprintf(broken->data, "%s%s", broken->data, header->data);
+
+        list_del(&header->list);
+        free(header);
+
+        debug("[frame_finish] (corrected) %s", broken->data);
+
+        broken = NULL;
+      } else if(index(header->data, ':') == NULL) {
+        broken = header;
+
+        debug("[frame_finish] (broken) %s", header->data);
+      } else {
+        prev = header;
+      }
+    }
+
+    if(broken != NULL) {
+      sprintf(prev->data, "%s%s", prev->data, broken->data);
+      list_del(&broken->list);
+      broken = NULL;
+
+      debug("[frame_finish] (corrected) %s", prev->data);
+    }
+  }
+  pthread_mutex_unlock(&frame->mutex_header);
+  */
+
   pthread_mutex_lock(&stomp_frame_bucket.mutex);
   { /* thread safe */
     list_add_tail(&frame->l_bucket, &stomp_frame_bucket.h_frame);
@@ -191,50 +261,102 @@ static void frame_finish(frame_t *frame) {
   pthread_mutex_unlock(&stomp_frame_bucket.mutex);
 }
 
-static int frame_update(char *line, int len, frame_t *frame) {
+static int get_contentlen(char *input) {
+  return atoi(input + 15);
+}
 
-  debug("(frame_update) >> %s [%d]", line, len);
+static int is_contentlen(char *input, int len) {
+  if(len > 15 && strncmp(input, "content-length:", 15) == 0) {
+    return RET_SUCCESS;
+  }
+  return RET_ERROR;
+}
 
-  if(IS_BL(line)) {
-    if(GET(frame, STATUS_INPUT_NAME) || GET(frame, STATUS_INPUT_HEADER) || GET(frame, STATUS_INPUT_BODY) ) {
-      frame_finish(frame);
+static int frame_update(char *line, int len, stomp_conninfo_t *cinfo) {
+  frame_t *frame = cinfo->frame;
+  int ret = 0;
+  assert(frame != NULL);
 
-      return 1;
+  if(GET(frame, STATUS_BORN)) {
+    if(frame_setname(line, len, frame) == RET_ERROR) {
+      warn("[frame_update] failed to set frame name");
     }
-  } else if(IS_NL(line)) {
-    /* The case of blankline is inputed */
-    if(GET(frame, STATUS_INPUT_HEADER)) {
-      if(strncmp(frame->name, "SEND", 4) == 0 || strncmp(frame->name, "MESSAGE", 7) == 0) {
+    debug("[frame_update] (%p) succeed in setting frame-name: %s", frame, frame->name);
+  } else if(GET(frame, STATUS_INPUT_HEADER)) {
+    if(IS_NL(line)) {
+      if(frame->contentlen > 0) {
         CLR(frame);
         SET(frame, STATUS_INPUT_BODY);
-      } else {
+        debug("[frame_update] succeed in separating header");
+
+        return 0;
+      } else if(frame->contentlen == 0) {
+        debug("[frame_update] succeed in paring frame!! (zerobody)");
         frame_finish(frame);
 
         return 1;
+      } else {
+        debug("[frame_update] ignore head NL");
+        while(! (IS_NL(line))) {
+          line++;
+          len -= 1;
+        }
       }
-    } else if(GET(frame, STATUS_INPUT_BODY)) {
-      frame_finish(frame);
-
-      return 1;
     }
-  } else {
-    if(GET(frame, STATUS_BORN)) {
-      frame_setname(line, len, frame);
-    } else if(GET(frame, STATUS_INPUT_NAME)) {
-      /* In some case, a blank line may inserted between name and headers */
-      DEL(frame, STATUS_INPUT_NAME);
-      SET(frame, STATUS_INPUT_HEADER);
 
-      stomp_setdata(line, len, &frame->h_attrs, &frame->mutex_header);
-    } else if(GET(frame, STATUS_INPUT_HEADER)) {
-      stomp_setdata(line, len, &frame->h_attrs, &frame->mutex_header);
-    } else if(GET(frame, STATUS_INPUT_BODY)) {
-      debug("(frame_update) (setdata) >> %s [%d]", line, len);
-      stomp_setdata(line, len, &frame->h_data, &frame->mutex_header);
+    if(len > 0) {
+      if(is_contentlen(line, len) == RET_SUCCESS) {
+        frame->contentlen = get_contentlen(line);
+        debug("[frame_update] (%p) succeed in setting contentlen: %d", frame, frame->contentlen);
+      }
+
+      linedata_t *attr = stomp_setdata(line, len, &frame->h_attrs, &frame->mutex_header);
+      if(attr != NULL) {
+        if(cinfo->broken_attr != NULL) {
+          sprintf(cinfo->broken_attr->data, "%s%s", cinfo->broken_attr->data, attr->data);
+
+          list_del(&attr->list);
+          free(attr);
+
+          if(is_contentlen(line, len) == RET_SUCCESS) {
+            frame->contentlen = get_contentlen(line);
+            debug("[frame_update] (%p) succeed in setting contentlen: %d", frame, frame->contentlen);
+          }
+
+          debug("[frame_update] (%p) (corrected) %s", frame, cinfo->broken_attr->data);
+
+          cinfo->broken_attr = NULL;
+
+        } else if(index(line, ':') == NULL) {
+          debug("[frame_update] (%p) (broken) %s", frame, attr->data);
+
+          cinfo->broken_attr = attr;
+        } else {
+          cinfo->prev_attr = attr;
+        }
+      }
+    }
+  } else if(GET(frame, STATUS_INPUT_BODY)) {
+    if(len > 0) {
+      frame->has_contentlen += len;
+      stomp_setdata(line, len, &frame->h_data, &frame->mutex_body);
+
+      debug("[frame_update] (%p) succeed in set body [%d/%d]", frame, frame->contentlen, frame->has_contentlen);
+    }
+
+    if(IS_BL(line)) {
+      warn("[frame_update] (%p) got blank-line [contentlen:%d/%d]", frame, frame->contentlen, frame->has_contentlen);
+    }
+
+    if(frame->contentlen <= frame->has_contentlen) {
+      frame_finish(frame);
+      debug("[frame_update] (%p) succeed in parsing frame!!", frame);
+
+      ret = 1;
     }
   }
 
-  return 0;
+  return ret;
 }
 
 int stomp_init() {
@@ -255,9 +377,10 @@ static stomp_conninfo_t *conn_init() {
 
     /* intiialize params */
     ret->status = 0;
-    ret->remained_data = NULL;
-    SET(ret, STATE_INIT);
-    memset(ret->line_buf, 0, LD_MAX);
+    ret->prev_attr = NULL;
+    ret->broken_attr = NULL;
+    ret->prev_data = NULL;
+    ret->prev_len = 0;
   }
 
   return ret;
@@ -320,14 +443,9 @@ void *stomp_conn_worker(struct conninfo *cinfo) {
 
     memset(buf, 0, RECV_BUFSIZE);
 
-    ioctl(cinfo->sock, FIONREAD, &len);
-
-    if(len == 0 && frame != NULL && GET(frame, STATUS_INPUT_BODY)) {
-      frame_finish(frame);
-      stomp_cinfo->frame = NULL;
-    }
-
     len = recv(cinfo->sock, buf, sizeof(buf), 0);
+
+    debug("[stomp_conn_worker] calling recv_data");
 
     recv_data(buf, len, cinfo->sock, cinfo->protocol_data);
   } while(len != 0);
@@ -337,51 +455,18 @@ void *stomp_conn_worker(struct conninfo *cinfo) {
 
   del_signal_handler(handler);
 
+  debug("[stomp_conn_worker] stopped");
+
   return NULL;
 }
 
-static int do_recv_data(char *line, int len, int sock, void *_cinfo) {
-  stomp_conninfo_t *cinfo = (stomp_conninfo_t *)_cinfo;
-
-  if(cinfo == NULL || (cinfo->frame == NULL && len == 0)) {
-    return RET_ERROR;
-  }
-
-  debug("(do_recv_data) %s [%d]", line, len);
-
-  if(IS_BL(line) || IS_NL(line)) {
-    if(frame_update(line, len, cinfo->frame) > 0) {
-      /* In this case, some problem is occurred */
-      cinfo->frame = NULL;
-    }
-
-    return RET_SUCCESS;
-  }
-
-  if(cinfo->frame != NULL) {
-    int i;
-    struct stomp_frame_info *finfo;
-
-    for(i=0; finfo=&finfo_arr[i], finfo!=NULL; i++) {
-      if(len < finfo->len || finfo->name == NULL) {
-        break;
-      }
-
-      if(strncmp(line, finfo->name, finfo->len) == 0) {
-        debug("(recv_data) <matched %s [%d]>", finfo->name, finfo->len);
-        frame_finish(cinfo->frame);
-        cinfo->frame = NULL;
-        break;
-      }
-    }
-  }
+static void prepare_frame(stomp_conninfo_t *cinfo, int sock) {
+  assert(cinfo != NULL);
 
   if(cinfo->frame == NULL) {
     frame_t *frame = alloc_frame(sock);
-    if(frame == NULL) {
-      perror("[recv_data] failed to allocate memory");
-      return RET_ERROR;
-    }
+
+    assert(frame != NULL);
 
     /* initialize frame params */
     frame->sock = sock;
@@ -390,68 +475,105 @@ static int do_recv_data(char *line, int len, int sock, void *_cinfo) {
     /* to reference this values over the 'recv_data' calling */
     cinfo->frame = frame;
   }
-  
-  if(frame_update(line, len, cinfo->frame) > 0) {
-    /* In this case, some problem is occurred */
-    cinfo->frame = NULL;
+}
+
+static int is_frame_name(const char *name, int len) {
+  int i;
+  struct stomp_frame_info *finfo;
+
+  for(i=0; finfo=&finfo_arr[i], finfo!=NULL; i++) {
+    if(len < finfo->len) {
+      continue;
+    } else if(finfo->len == 0) {
+      break;
+    }
+    if(strncmp(name, finfo->name, finfo->len) == 0) {
+      return RET_SUCCESS;
+    }
   }
 
-  return RET_SUCCESS;
+  return RET_ERROR;
 }
 
 int recv_data(char *recv_data, int len, int sock, void *_cinfo) {
   stomp_conninfo_t *cinfo = (stomp_conninfo_t *)_cinfo;
-  char *curr, *next, *end;
+  char *curr, *next, *end, *line;
 
   curr = recv_data;
-  end = (recv_data + len - 1);
+  end = (recv_data + len);
 
-  while(curr <= end) {
-    int line_len;
-    int line_prefix = 0;
+  debug("[recv_data] raw_data: %s [%d]", recv_data, len);
 
-    if(cinfo->remained_data != NULL) {
-      memcpy(cinfo->line_buf, cinfo->remained_data, cinfo->remained_size);
-      free(cinfo->remained_data);
+  while(curr < end) {
+    int line_len, ret;
+    int body_input = 0;
 
-      cinfo->remained_data = NULL;
-      line_prefix = cinfo->remained_size;
-    }
+    debug("[recv_data] ====[%p/%p]====", curr, end);
 
-    next = ssplit(curr, end);
-    if(next == NULL) {
-      int remained_size = (int)(end - curr) + 1;
-      char *remained_data = (char *)malloc(remained_size);
+    // in header parsing
+    ret = ssplit(curr, end, &line_len);
+    if(ret == RET_ERROR && is_frame_name(curr, line_len) == RET_ERROR) {
+      debug("[recv_data] broken_line: %s [%d]", curr, line_len);
 
-      if(remained_data != NULL) {
-        memcpy(remained_data, curr, remained_size);
+      char *data = malloc(LD_MAX);
 
-        cinfo->remained_data = remained_data;
-        cinfo->remained_size = remained_size;
-      }
+      memset(data, 0, LD_MAX);
+      strncpy(data, curr, line_len);
+
+      cinfo->prev_data = data;
+      cinfo->prev_len = line_len;
 
       break;
     }
 
-    line_len = (int)(next - curr);
-    if(line_len > LD_MAX) {
-      line_len = LD_MAX;
-    }
-
-    if(line_len > 0) {
-      memcpy((cinfo->line_buf + line_prefix), curr, line_len);
-      cinfo->line_buf[line_len + line_prefix] = '\0';
-    } else if(line_prefix > 0) {
-      cinfo->line_buf[line_prefix] = '\0';
+    // set next position because following processing may change 'line_len' variable
+    if(cinfo->frame != NULL && GET(cinfo->frame, STATUS_INPUT_BODY)) {
+      next = curr + line_len;
+      body_input = 1;
     } else {
-      cinfo->line_buf[0] = *curr;
-      cinfo->line_buf[1] = '\0';
+      next = curr + line_len + 1;
     }
 
-    do_recv_data(cinfo->line_buf, line_len + line_prefix, sock, _cinfo);
+    if(cinfo->prev_data != NULL) {
+      debug("[recv_data] (merge prev_data) '%s'(%d) + '%s'(%d)", cinfo->prev_data, cinfo->prev_len, curr, line_len);
+      line = cinfo->prev_data;
 
-    curr = next + 1;
+      strncpy(line + cinfo->prev_len, curr, line_len);
+
+      line_len += cinfo->prev_len;
+      line[line_len] = '\0';
+    } else {
+      line = curr;
+    }
+
+    debug("[recv_data] correct_line: %s [%d]", line, line_len);
+
+    if(cinfo->frame != NULL || line_len > 0) {
+      prepare_frame(cinfo, sock);
+
+      if(frame_update(line, line_len, cinfo) > 0) {
+        cinfo->frame = NULL;
+        if(body_input > 0) {
+          next++;
+        }
+      }
+
+      if(cinfo->frame != NULL) {
+        debug("[recv_data] content [%d/%d]", cinfo->frame->contentlen, cinfo->frame->has_contentlen);
+      }
+    }
+
+    if(cinfo->prev_data != NULL) {
+      free(cinfo->prev_data);
+
+      cinfo->prev_data = NULL;
+      cinfo->prev_len = 0;
+    }
+
+    curr = next;
   }
+
+  debug("[recv_data] finished");
 
   return RET_SUCCESS;
 }
@@ -528,11 +650,14 @@ void stomp_send_message(int sock, frame_t *frame, struct list_head *headers) {
     send_msg(sock, "\n");
   }
 
-  // separation of headers and body
-  send_msg(sock, "\n");
+  if(! list_empty(&frame->h_data)) {
+    // separation of headers and body
+    send_msg(sock, "\n");
 
-  list_for_each_entry(body, &frame->h_data, list) {
-    send_msg(sock, body->data);
+    list_for_each_entry(body, &frame->h_data, list) {
+      send_msg(sock, body->data);
+    }
   }
+
   send_msg(sock, NULL);
 }

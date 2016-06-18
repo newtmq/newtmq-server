@@ -155,7 +155,7 @@ void *stomp_management_worker(void *data) {
   while(1) {
     frame = get_frame_from_bucket();
     if(frame != NULL) {
-      debug("(stomp_management_worker) frame_name: %s", frame->name);
+      debug("(stomp_management_worker) (%p) frame_name: %s", frame, frame->name);
 
       handle_frame(frame);
     }

@@ -140,6 +140,7 @@ int send_msg(int sock, char *msg) {
   int ret;
 
   if(msg != NULL) {
+    debug("[send_msg] %s [%d]", msg, strlen(msg));
     ret = send(sock, msg, strlen(msg), 0);
   } else {
     ret = send(sock, "\0", 1, 0);
