@@ -48,9 +48,9 @@ static int send_connected_msg(int sock) {
   };
 
   for(i=0; msg[i] != NULL; i++) {
-    send_msg(sock, msg[i]);
+    send_msg(sock, msg[i], strlen(msg[i]));
   }
-  send_msg(sock, NULL);
+  send_msg(sock, "\0", 1);
 
   return RET_SUCCESS;
 }

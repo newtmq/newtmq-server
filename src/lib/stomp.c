@@ -98,7 +98,7 @@ void free_frame(frame_t *frame) {
   free(frame);
 }
 
-static int ssplit(char *start, char *end, int *len) {
+static int ssplit(char *start, char *end, int *len, int is_body) {
   char *p;
   int count = 0;
   int ret = RET_SUCCESS;
@@ -106,7 +106,12 @@ static int ssplit(char *start, char *end, int *len) {
   assert(start != NULL);
   assert(end != NULL);
 
-  if(IS_NL(start) || IS_BL(start)) {
+  int is_separation = IS_BL(start);
+  if(! is_body) {
+    is_separation |= IS_NL(start);
+  }
+
+  if(is_separation) {
     *len = 0;
 
     return RET_SUCCESS;
@@ -117,10 +122,9 @@ static int ssplit(char *start, char *end, int *len) {
     p = start + count;
 
     if(p >= end) {
-      debug("[ssplit] line is separated");
       ret = RET_ERROR;
     }
-  } while(! (*p == '\0' || *p == '\n' || p >= end || count >= LD_MAX));
+  } while(! (*p == '\0' || (*p == '\n' && ! is_body) || p >= end || count >= LD_MAX));
 
   *len = count;
 
@@ -164,15 +168,14 @@ linedata_t *stomp_setdata(char *data, int len, struct list_head *head, pthread_m
       attrlen = LD_MAX;
     }
 
-    debug("[stomp_setdata] (%d + %d) %s", len, offset, data);
-
     attr = (linedata_t *)malloc(sizeof(linedata_t));
     if(attr == NULL) {
       warn("failed to allocate linedata_t");
       return NULL;
     }
 
-    memset(attr, 0, sizeof(linedata_t));
+    attr->len = attrlen;
+    memset(attr->data, 0, LD_MAX);
     memcpy(attr->data, data + offset, attrlen);
     INIT_LIST_HEAD(&attr->list);
 
@@ -213,48 +216,8 @@ static void frame_finish(frame_t *frame) {
   CLR(frame);
   SET(frame, STATUS_IN_BUCKET);
 
-  debug("(frame_finish) %s", frame->name);
-
   // set frame-id
   gen_random(frame->id, FRAME_ID_LEN);
-
-  // correct broken header
-  /*
-  linedata_t *broken, *prev;
-  broken = prev = NULL;
-  pthread_mutex_lock(&frame->mutex_header);
-  {
-    linedata_t *header, *h;
-    list_for_each_entry_safe(header, h, &frame->h_attrs, list) {
-      debug("[frame_finish] (check) %s", header->data);
-      if(broken != NULL) {
-        sprintf(broken->data, "%s%s", broken->data, header->data);
-
-        list_del(&header->list);
-        free(header);
-
-        debug("[frame_finish] (corrected) %s", broken->data);
-
-        broken = NULL;
-      } else if(index(header->data, ':') == NULL) {
-        broken = header;
-
-        debug("[frame_finish] (broken) %s", header->data);
-      } else {
-        prev = header;
-      }
-    }
-
-    if(broken != NULL) {
-      sprintf(prev->data, "%s%s", prev->data, broken->data);
-      list_del(&broken->list);
-      broken = NULL;
-
-      debug("[frame_finish] (corrected) %s", prev->data);
-    }
-  }
-  pthread_mutex_unlock(&frame->mutex_header);
-  */
 
   pthread_mutex_lock(&stomp_frame_bucket.mutex);
   { /* thread safe */
@@ -289,16 +252,13 @@ static int frame_update(char *line, int len, stomp_conninfo_t *cinfo) {
       if(frame->contentlen > 0) {
         CLR(frame);
         SET(frame, STATUS_INPUT_BODY);
-        debug("[frame_update] succeed in separating header");
 
         return 0;
       } else if(frame->contentlen == 0) {
-        debug("[frame_update] succeed in paring frame!! (zerobody)");
         frame_finish(frame);
 
         return 1;
       } else {
-        debug("[frame_update] ignore head NL");
         while(! (IS_NL(line))) {
           line++;
           len -= 1;
@@ -312,31 +272,7 @@ static int frame_update(char *line, int len, stomp_conninfo_t *cinfo) {
         debug("[frame_update] (%p) succeed in setting contentlen: %d", frame, frame->contentlen);
       }
 
-      linedata_t *attr = stomp_setdata(line, len, &frame->h_attrs, &frame->mutex_header);
-      if(attr != NULL) {
-        if(cinfo->broken_attr != NULL) {
-          sprintf(cinfo->broken_attr->data, "%s%s", cinfo->broken_attr->data, attr->data);
-
-          list_del(&attr->list);
-          free(attr);
-
-          if(is_contentlen(line, len) == RET_SUCCESS) {
-            frame->contentlen = get_contentlen(line);
-            debug("[frame_update] (%p) succeed in setting contentlen: %d", frame, frame->contentlen);
-          }
-
-          debug("[frame_update] (%p) (corrected) %s", frame, cinfo->broken_attr->data);
-
-          cinfo->broken_attr = NULL;
-
-        } else if(index(line, ':') == NULL) {
-          debug("[frame_update] (%p) (broken) %s", frame, attr->data);
-
-          cinfo->broken_attr = attr;
-        } else {
-          cinfo->prev_attr = attr;
-        }
-      }
+      stomp_setdata(line, len, &frame->h_attrs, &frame->mutex_header);
     }
   } else if(GET(frame, STATUS_INPUT_BODY)) {
     if(len > 0) {
@@ -379,8 +315,6 @@ static stomp_conninfo_t *conn_init() {
 
     /* intiialize params */
     ret->status = 0;
-    ret->prev_attr = NULL;
-    ret->broken_attr = NULL;
     ret->prev_data = NULL;
     ret->prev_len = 0;
   }
@@ -447,8 +381,6 @@ void *stomp_conn_worker(struct conninfo *cinfo) {
 
     len = recv(cinfo->sock, buf, sizeof(buf), 0);
 
-    debug("[stomp_conn_worker] calling recv_data");
-
     recv_data(buf, len, cinfo->sock, cinfo->protocol_data);
   } while(len != 0);
 
@@ -456,8 +388,6 @@ void *stomp_conn_worker(struct conninfo *cinfo) {
   conn_finish(cinfo->protocol_data);
 
   del_signal_handler(handler);
-
-  debug("[stomp_conn_worker] stopped");
 
   return NULL;
 }
@@ -504,49 +434,37 @@ int recv_data(char *recv_data, int len, int sock, void *_cinfo) {
   curr = recv_data;
   end = (recv_data + len);
 
-  debug("[recv_data] raw_data: %s [%d]", recv_data, len);
-
   while(curr < end) {
     int line_len, ret;
-    int body_input = 0;
-
-    debug("[recv_data] ====[%p/%p]====", curr, end);
+    int is_body_input = cinfo->frame != NULL && GET(cinfo->frame, STATUS_INPUT_BODY);
 
     // in header parsing
-    ret = ssplit(curr, end, &line_len);
+    ret = ssplit(curr, end, &line_len, is_body_input);
     if(ret == RET_ERROR && is_frame_name(curr, line_len) == RET_ERROR) {
-      debug("[recv_data] broken_line: %s [%d]", curr, line_len);
-
       char *data;
       if(cinfo->prev_data != NULL) {
         data = realloc(cinfo->prev_data, cinfo->prev_len + LD_MAX);
       } else {
-        data = malloc(LD_MAX);
+        data = malloc(LD_MAX * 2);
       }
 
-      memset(data, 0, LD_MAX);
-      strncpy(data, curr, line_len);
+      memset(data + cinfo->prev_len, 0, LD_MAX);
+      strncpy(data + cinfo->prev_len, curr, line_len);
 
       cinfo->prev_data = data;
-      cinfo->prev_len = line_len;
+      cinfo->prev_len += line_len;
 
       break;
     }
 
     // set next position because following processing may change 'line_len' variable
-    if(cinfo->frame != NULL && GET(cinfo->frame, STATUS_INPUT_BODY)) {
-      if(IS_NL(curr) || IS_BL(curr)) {
-        line_len = 1;
-      }
-
+    if(is_body_input) {
       next = curr + line_len;
-      body_input = 1;
     } else {
       next = curr + line_len + 1;
     }
 
     if(cinfo->prev_data != NULL) {
-      debug("[recv_data] (merge prev_data) '%s'(%d) + '%s'(%d)", cinfo->prev_data, cinfo->prev_len, curr, line_len);
       line = cinfo->prev_data;
 
       strncpy(line + cinfo->prev_len, curr, line_len);
@@ -566,7 +484,7 @@ int recv_data(char *recv_data, int len, int sock, void *_cinfo) {
       debug("[frame_update] (ret/frame_update) %d", ret);
       if(ret > 0) {
         cinfo->frame = NULL;
-        if(body_input > 0) {
+        if(is_body_input > 0) {
           next++;
         }
       } else if(ret < 0) {
@@ -587,8 +505,6 @@ int recv_data(char *recv_data, int len, int sock, void *_cinfo) {
 
     curr = next;
   }
-
-  debug("[recv_data] finished");
 
   return RET_SUCCESS;
 }
@@ -621,9 +537,9 @@ void stomp_send_error(int sock, char *body) {
 
   if(is_socket_valid(sock) == RET_SUCCESS) {
     for(i=0; msg[i] != NULL; i++) {
-      send_msg(sock, msg[i]);
+      send_msg(sock, msg[i], strlen(msg[i]));
     }
-    send_msg(sock, NULL);
+    send_msg(sock, "\0", 1);
   }
 }
 
@@ -634,9 +550,9 @@ void stomp_send_receipt(int sock, char *id) {
   if(sock > 0 && id != NULL) {
     sprintf(buf, "receipt-id:%s\n", id);
 
-    send_msg(sock, "RECEIPT\n");
-    send_msg(sock, buf);
-    send_msg(sock, NULL);
+    send_msg(sock, "RECEIPT\n", 8);
+    send_msg(sock, buf, strlen(buf));
+    send_msg(sock, "\0", 1);
   }
 }
 
@@ -644,35 +560,38 @@ void stomp_send_message(int sock, frame_t *frame, struct list_head *headers) {
   linedata_t *header;
   linedata_t *body;
 
-  send_msg(sock, "MESSAGE\n");
+  send_msg(sock, "MESSAGE\n", 8);
 
   list_for_each_entry(header, &frame->h_attrs, list) {
-    send_msg(sock, header->data);
-    send_msg(sock, "\n");
+    debug("[stomp_send_message] (header) %s [%d]", header->data, header->len);
+    send_msg(sock, header->data, header->len);
+    send_msg(sock, "\n", 1);
   }
 
   if(headers != NULL) {
     list_for_each_entry(header, headers, list) {
-      send_msg(sock, header->data);
-      send_msg(sock, "\n");
+      debug("[stomp_send_message] (ext-header) %s [%d]", header->data, header->len);
+
+      send_msg(sock, header->data, header->len);
+      send_msg(sock, "\n", 1);
     }
   }
 
   // send static headers
   {
-    send_msg(sock, "message-id: ");
-    send_msg(sock, frame->id);
-    send_msg(sock, "\n");
+    send_msg(sock, "message-id: ", 12);
+    send_msg(sock, frame->id, FRAME_ID_LEN);
+    send_msg(sock, "\n", 1);
   }
 
   if(! list_empty(&frame->h_data)) {
     // separation of headers and body
-    send_msg(sock, "\n");
+    send_msg(sock, "\n", 1);
 
     list_for_each_entry(body, &frame->h_data, list) {
-      send_msg(sock, body->data);
+      send_msg(sock, body->data, body->len);
     }
   }
 
-  send_msg(sock, NULL);
+  send_msg(sock, "\0", 1);
 }

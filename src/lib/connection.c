@@ -136,15 +136,10 @@ void *connection_worker(void *data) {
   do_connection_worker(conf->server, conf->port, &stomp_conn_worker);
 }
 
-int send_msg(int sock, char *msg) {
+int send_msg(int sock, char *msg, int len) {
   int ret;
 
-  if(msg != NULL) {
-    debug("[send_msg] %s [%d]", msg, strlen(msg));
-    ret = send(sock, msg, strlen(msg), 0);
-  } else {
-    ret = send(sock, "\0", 1, 0);
-  }
+  ret = send(sock, msg, len, 0);
 
   return ret;
 }

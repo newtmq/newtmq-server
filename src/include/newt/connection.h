@@ -12,7 +12,7 @@
 
 void *ctrl_connection_worker(void *);
 void *connection_worker(void *);
-int send_msg(int, char *);
+int send_msg(int, char *, int);
 int is_socket_valid(int);
 
 /* This data structure is used only in the active connection

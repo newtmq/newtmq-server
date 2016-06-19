@@ -49,6 +49,7 @@ static int handler_reply_to(char *context, void *data, linedata_t *hdr) {
     attrinfo->reply_to = context;
 
     gen_random(context + context_len, UNIQUE_STR_LEN);
+    hdr->len += UNIQUE_STR_LEN;
 
     ret = RET_SUCCESS;
   }

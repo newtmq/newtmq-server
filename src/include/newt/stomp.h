@@ -11,7 +11,7 @@
 
 #define FNAME_LEN 12
 #define FRAME_ID_LEN 32
-#define LD_MAX (60)
+#define LD_MAX (1024)
 
 /* These values specify status of making frame */
 #define STATUS_BORN         (1 << 0)
@@ -63,13 +63,13 @@ struct frame_t {
 typedef struct linedata_t {
   char data[LD_MAX];
   struct list_head list;
+  int len;
 } linedata_t;
 
 /* This is alive during connection is active */
 struct stomp_conninfo_t {
   int status;
   frame_t *frame;
-  linedata_t *broken_attr, *prev_attr;
   char *prev_data;
   int prev_len;
 };
