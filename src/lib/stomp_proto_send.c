@@ -8,6 +8,7 @@
 #define UNIQUE_STR_LEN 10
 
 struct attrinfo_t {
+  stomp_conninfo_t *cinfo;
   char *qname;
   char *tid;
   char *receipt_id;
@@ -48,8 +49,8 @@ static int handler_reply_to(char *context, void *data, linedata_t *hdr) {
   if(context_len + UNIQUE_STR_LEN < LD_MAX) {
     attrinfo->reply_to = context;
 
-    gen_random(context + context_len, UNIQUE_STR_LEN);
-    hdr->len += UNIQUE_STR_LEN;
+    sprintf(context, "%s%s", context, attrinfo->cinfo->id);
+    hdr->len += CONN_ID_LEN;
 
     ret = RET_SUCCESS;
   }
@@ -70,6 +71,8 @@ frame_t *handler_stomp_send(frame_t *frame) {
 
   assert(frame != NULL);
   assert(frame->cinfo != NULL);
+
+  attrinfo.cinfo = frame->cinfo;
 
   if(iterate_header(&frame->h_attrs, handlers, &attrinfo) == RET_ERROR) {
     err("(handle_stomp_send) validation error");

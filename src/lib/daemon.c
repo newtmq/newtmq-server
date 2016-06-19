@@ -30,6 +30,10 @@ int daemon_initialize() {
     return RET_ERROR;
   }
 
+  if(initialize_worker_sending() == RET_ERROR) {
+    return RET_ERROR;
+  }
+
   return RET_SUCCESS;
 }
 

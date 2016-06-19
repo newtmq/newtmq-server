@@ -314,6 +314,7 @@ static stomp_conninfo_t *conn_init() {
     memset(ret, 0, sizeof(stomp_conninfo_t));
 
     /* intiialize params */
+    gen_random(ret->id, CONN_ID_LEN);
     ret->status = 0;
     ret->prev_data = NULL;
     ret->prev_len = 0;
@@ -563,15 +564,12 @@ void stomp_send_message(int sock, frame_t *frame, struct list_head *headers) {
   send_msg(sock, "MESSAGE\n", 8);
 
   list_for_each_entry(header, &frame->h_attrs, list) {
-    debug("[stomp_send_message] (header) %s [%d]", header->data, header->len);
     send_msg(sock, header->data, header->len);
     send_msg(sock, "\n", 1);
   }
 
   if(headers != NULL) {
     list_for_each_entry(header, headers, list) {
-      debug("[stomp_send_message] (ext-header) %s [%d]", header->data, header->len);
-
       send_msg(sock, header->data, header->len);
       send_msg(sock, "\n", 1);
     }
