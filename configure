@@ -3527,7 +3527,7 @@ _ACEOF
   LIBS="-lpthread $LIBS"
 
 else
-  echo "Error: Required library pthread not found. Install its development package and try again" && exit 1
+  echo "Error: Required library 'pthread' not found. Install its development package and try again" && exit 1
 fi
 
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for cfg_init in -lconfuse" >&5
@@ -3574,7 +3574,54 @@ _ACEOF
   LIBS="-lconfuse $LIBS"
 
 else
-  echo "Error: Required library confuse not found. Install ints development package  and try again" && exit 1
+  echo "Error: Required library 'confuse' not found. Install its development package and try again" && exit 1
+fi
+
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for msgpack_unpack in -lmsgpack" >&5
+$as_echo_n "checking for msgpack_unpack in -lmsgpack... " >&6; }
+if ${ac_cv_lib_msgpack_msgpack_unpack+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lmsgpack  $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char msgpack_unpack ();
+int
+main ()
+{
+return msgpack_unpack ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  ac_cv_lib_msgpack_msgpack_unpack=yes
+else
+  ac_cv_lib_msgpack_msgpack_unpack=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_msgpack_msgpack_unpack" >&5
+$as_echo "$ac_cv_lib_msgpack_msgpack_unpack" >&6; }
+if test "x$ac_cv_lib_msgpack_msgpack_unpack" = xyes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_LIBMSGPACK 1
+_ACEOF
+
+  LIBS="-lmsgpack $LIBS"
+
+else
+  echo "Error: Required library 'msgpack' not found. Install its development package and try again" && exit 1
 fi
 
 ac_ext=c

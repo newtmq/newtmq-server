@@ -3,6 +3,9 @@
 /* Define to 1 if you have the `confuse' library (-lconfuse). */
 #undef HAVE_LIBCONFUSE
 
+/* Define to 1 if you have the `msgpack' library (-lmsgpack). */
+#undef HAVE_LIBMSGPACK
+
 /* Define to 1 if you have the `pthread' library (-lpthread). */
 #undef HAVE_LIBPTHREAD
 
