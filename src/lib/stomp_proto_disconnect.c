@@ -3,7 +3,7 @@
 
 #include <assert.h>
 
-static int handler_receipt(char *context, void *data) {
+static int handler_receipt(char *context, void *data, linedata_t *_hdr) {
   char **receipt_id = (char **)data;
   int ret = RET_ERROR;
 

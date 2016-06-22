@@ -6,6 +6,7 @@
 typedef struct newt_config {
   char *server;
   int port;
+  int ctrl_port;
   char *logfile;
   cfg_bool_t debug;
   char *loglevel;

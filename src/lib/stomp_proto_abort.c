@@ -3,7 +3,7 @@
 
 #include <assert.h>
 
-static int handler_transaction(char *context, void *data) {
+static int handler_transaction(char *context, void *data, linedata_t *_hdr) {
   char **tid = (char **)data;
   int ret = RET_ERROR;
 

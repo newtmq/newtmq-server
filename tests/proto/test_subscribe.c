@@ -16,7 +16,8 @@ static void test_subscribe(void) {
   char *msg[] = {
     "SUBSCRIBE\n",
     "destination:/queue/test\n",
-    "id:test1"
+    "content-length:0\n",
+    "id:test1\n",
     "\n",
     NULL,
   };

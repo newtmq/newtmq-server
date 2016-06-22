@@ -28,6 +28,7 @@ int main(int argc, char **argv) {
     ADD_TESTS(test_proto_subscribe);
     ADD_TESTS(test_proto_begin);
     ADD_TESTS(test_proto_error);
+    ADD_TESTS(test_newtctl_worker);
 
     CU_basic_run_tests();
 

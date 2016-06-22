@@ -3,6 +3,8 @@
 #include <newt/common.h>
 #include <newt/stomp_management_worker.h>
 
+#include <stomp.c>
+
 #include <string.h>
 
 #define STDOUT 1
@@ -10,6 +12,7 @@
 
 static void test_initialize(void) {
   char *inputs[] = { "CONNECT\n", \
+                     "content-length:0", \
                      "accept-version:1.2\n", \
                      "login:guest\n", \
                      "passcode:guest\n", \
@@ -21,7 +24,7 @@ static void test_initialize(void) {
 
   CU_ASSERT(stomp_init() == RET_SUCCESS);
 
-  c_info = (stomp_conninfo_t *)stomp_conn_init();
+  c_info = (stomp_conninfo_t *)conn_init();
   CU_ASSERT(c_info != NULL);
 
   int i;
@@ -32,9 +35,9 @@ static void test_initialize(void) {
     memset(buf, 0, BUFLEN);
     memcpy(buf, inputs[i], strlen(inputs[i]));
 
-    CU_ASSERT(stomp_recv_data(buf, strlen(buf), STDOUT, c_info) == RET_SUCCESS);
+    CU_ASSERT(recv_data(buf, strlen(buf), STDOUT, c_info) == RET_SUCCESS);
 
-    if(strcmp(inputs[i], "\n") == 0 || strcmp(inputs[i], "\0") == 0) {
+    if(strcmp(inputs[i], "\0") == 0 || strcmp(inputs[i], "\n") == 0) {
       CU_ASSERT(c_info->frame == NULL);
     } else {
       CU_ASSERT(c_info->frame != NULL);

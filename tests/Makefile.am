@@ -5,6 +5,7 @@ newt_test_SOURCES = test.c \
                     client.c \
                     daemon.c \
                     config.c \
+                    newtctl/test_worker.c \
                     unit/test_optparse.c \
                     unit/test_config.c \
                     unit/test_stomp.c \
@@ -18,7 +19,7 @@ newt_test_SOURCES = test.c \
                     proto/test_subscribe.c \
                     proto/test_error.c
 newt_test_LDADD = -lcunit -l_newt -lconfuse -lpthread
-newt_test_CFLAGS = -I../src/include/
+newt_test_CFLAGS = -I../src/include/ -I../src/lib
 newt_test_LDFLAGS = -L../src/lib/
 
 check:

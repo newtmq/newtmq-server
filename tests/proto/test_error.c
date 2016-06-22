@@ -24,7 +24,7 @@ static void test_error(void) {
   }
   send(sock, "\0", 1, 0);
 
-  sleep(0.5);
+  sleep(1);
 
   /* check not to receive ERROR frame */
   len = recv(sock, buf, sizeof(buf), MSG_DONTWAIT);

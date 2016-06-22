@@ -1,6 +1,7 @@
 noinst_LIBRARIES = lib_newt.a
 lib_newt_a_CFLAGS  = -I../include $(CFLAGS)
 lib_newt_a_SOURCES = optparse.c \
+                     common.c \
                      config.c \
                      signal.c \
                      queue.c \
@@ -8,6 +9,8 @@ lib_newt_a_SOURCES = optparse.c \
                      logger.c \
                      connection.c \
                      transaction.c \
+                     newtctl.c \
+                     newtctl_commands.c \
                      stomp_proto_connect.c \
                      stomp_proto_disconnect.c \
                      stomp_proto_send.c \
@@ -19,4 +22,5 @@ lib_newt_a_SOURCES = optparse.c \
                      stomp_proto_abort.c \
                      stomp_proto_commit.c \
                      stomp_worker_management.c \
+                     stomp_worker_sending.c \
                      stomp.c

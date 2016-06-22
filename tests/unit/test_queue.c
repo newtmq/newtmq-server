@@ -2,31 +2,18 @@
 
 #include <newt/common.h>
 #include <newt/queue.h>
+#include <newt/list.h>
 
 #include <stdlib.h>
 
-#define DATALEN 10000
-#define QNAMELEN 128
+#define DATALEN 1000
+#define QNAMELEN 32
 
 struct test_data {
   char qname[QNAMELEN];
   int value;
 };
 struct test_data data_arr[DATALEN];
-
-static void gen_random(char *s, const int len) {
-  static const char alphanum[] = 
-    "0123456789"
-    "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-    "abcdefghijklmnopqrstuvwxyz";
-  int i;
-  
-  for (i=0; i<len; i++) {
-    s[i] = alphanum[rand() % (sizeof(alphanum) - 1)];
-  }
-  
-  s[len] = 0;
-}
 
 static void check_init(void) {
   CU_ASSERT(initialize_queuebox() == RET_SUCCESS);
@@ -51,6 +38,24 @@ static void check_enqueue(void) {
   }
 
   CU_ASSERT(ret == RET_SUCCESS);
+}
+
+static void check_queueinfo(void) {
+  struct list_head queuelist_head;
+  struct q_entry *entry, *e;
+
+  CU_ASSERT(get_queuelist(&queuelist_head) == DATALEN);
+
+  int count = 0;
+  list_for_each_entry_safe(entry, e, &queuelist_head, l_queue) {
+    list_del(&entry->l_queue);
+
+    free(entry);
+
+    count++;
+  }
+
+  CU_ASSERT(count == DATALEN);
 }
 
 static void check_dequeue(void) {
@@ -83,6 +88,7 @@ int test_queue(CU_pSuite suite) {
 
   CU_add_test(suite, "check queue initialization", check_init);
   CU_add_test(suite, "check entier object to queue", check_enqueue);
+  CU_add_test(suite, "check get_queue_info", check_queueinfo);
   CU_add_test(suite, "check get object from queue", check_dequeue);
   CU_add_test(suite, "check cleanup processing about queue", check_cleanup);
 

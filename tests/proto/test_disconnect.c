@@ -11,7 +11,9 @@ static void test_disconnect(void) {
   char buf[512];
   char *msg[] = {
     "DISCONNECT\n",
+    "content-length:0\n"
     "receipt:test-1\n",
+    "\n",
     NULL,
   };
   int sock, len, i;
@@ -25,7 +27,7 @@ static void test_disconnect(void) {
   }
   send(sock, "\0", 1, 0);
 
-  sleep(0.5);
+  sleep(1);
 
   /* check not to receive ERROR frame */
   len = recv(sock, buf, sizeof(buf), MSG_DONTWAIT);

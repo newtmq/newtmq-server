@@ -14,9 +14,11 @@ static void test_connect(void) {
   char buf[512];
   char *msg[] = {
     "CONNECT\n",
+    "content-length:0\n",
     "accept-version:1.2\n",
     "login:guest\n",
     "passcode:guest\n",
+    "\n",
     NULL,
   };
   int sock, len, i;
