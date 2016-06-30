@@ -12,6 +12,8 @@ int main(int argc, char **argv) {
   int ret, failed_num;
   pid_t pid;
 
+  signal(SIGPIPE, SIG_IGN);
+
   pid = start_newtd();
   if(pid > 0) {
     CU_initialize_registry();
@@ -26,6 +28,7 @@ int main(int argc, char **argv) {
     ADD_TESTS(test_proto_connect);
     ADD_TESTS(test_proto_disconnect);
     ADD_TESTS(test_proto_subscribe);
+    ADD_TESTS(test_proto_reply_to);
     ADD_TESTS(test_proto_begin);
     ADD_TESTS(test_proto_error);
     ADD_TESTS(test_newtctl_worker);

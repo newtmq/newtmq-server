@@ -22,7 +22,9 @@ static void test_subscribe(void) {
     NULL,
   };
   int sock;
-  struct timeval tv;
+  char *headers[] = {
+    "destination:/queue/test\n",
+  };
 
   sock = connect_server();
 
@@ -30,7 +32,7 @@ static void test_subscribe(void) {
   CU_ASSERT(stomp_connect(sock) == RET_SUCCESS);
 
   // success to send test message
-  CU_ASSERT(stomp_send(sock, "hoge\n", 5) == RET_SUCCESS);
+  CU_ASSERT(stomp_send(sock, "hoge\n", 5, headers, 1) == RET_SUCCESS);
 
   int i;
   for(i=0; msg[i] != NULL; i++) {
@@ -55,4 +57,3 @@ int test_proto_subscribe(CU_pSuite suite) {
 
   return CU_SUCCESS;
 }
-

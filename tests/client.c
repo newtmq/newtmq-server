@@ -48,16 +48,11 @@ int stomp_connect(int sock) {
 
   int i;
   for(i=0; msg[i] != NULL; i++) {
-    if(send(sock, msg[i], strlen(msg[i]), 0) <= 0) {
+    if(mysend(sock, msg[i], strlen(msg[i]), 0) <= 0) {
       return RET_ERROR;
     }
   }
-  send(sock, "\0", 1, 0);
-
-  struct timeval tv;
-  tv.tv_sec = RECV_TIMEOUT;
-  tv.tv_usec = 0;
-  setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, (char *)&tv, sizeof(tv));
+  mysend(sock, "\0", 1, 0);
 
   int ret = RET_ERROR;
   while(recv(sock, buf, sizeof(buf), 0) > 0) {
@@ -69,31 +64,31 @@ int stomp_connect(int sock) {
   return ret;
 }
 
-int stomp_send(int sock, char *data, int len) {
+int stomp_send(int sock, char *data, int len, char **headers, int header_len) {
   char hdr_buf[LD_MAX];
   int i, hdrlen;
 
   // send command
-  send(sock, "SEND\n", 5, 0);
+  mysend(sock, "SEND\n", 5, 0);
 
   // send headers
-  hdrlen = sprintf(hdr_buf, "destination:/queue/test\n");
-  hdr_buf[hdrlen] = '\0';
-  send(sock, hdr_buf, strlen(hdr_buf), 0);
+  for(i=0; i<header_len; i++) {
+    mysend(sock, headers[i], strlen(headers[i]), 0);
+  }
 
   hdrlen = sprintf(hdr_buf, "content-length:%d\n", len);
   hdr_buf[hdrlen] = '\0';
-  send(sock, hdr_buf, strlen(hdr_buf), 0);
+  mysend(sock, hdr_buf, strlen(hdr_buf), 0);
 
-  send(sock, "\n", 1, 0);
+  mysend(sock, "\n", 1, 0);
 
   // send data
   if(data != NULL) {
-    if(send(sock, data, len, 0) <= 0) {
+    if(mysend(sock, data, len, 0) <= 0) {
       return RET_ERROR;
     }
   }
-  send(sock, "\0", 1, 0);
+  mysend(sock, "\0", 1, 0);
 
   return RET_SUCCESS;
 }
