@@ -7,6 +7,7 @@
 #define DESTINATION_IS_SET (1 << 0)
 #define ID_IS_SET          (1 << 1)
 
+// Here is a data-structure to manage worker threads
 typedef struct subscribe_t {
   char id[LD_MAX];
   pthread_t thread_id;
