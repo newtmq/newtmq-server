@@ -11,6 +11,7 @@
 struct attrinfo_t {
   char *destination;
   char *id;
+  char is_topic;
 };
 
 static int handler_destination(char *context, void *data, linedata_t *_hdr) {

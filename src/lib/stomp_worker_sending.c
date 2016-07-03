@@ -11,6 +11,11 @@
 #include <newt/common.h>
 #include <newt/stomp_worker_sending.h>
 
+// this value is used at status parmaeter of worker_info object
+enum worker_status {
+  IS_TOPIC = 1 << 0,
+};
+
 struct worker_manager_t {
   pthread_mutex_t mutex;
   struct list_head head;
@@ -32,6 +37,7 @@ struct worker_info_t {
   struct list_head h_client;
   pthread_t thread_id;
   pthread_mutex_t m_client;
+  int status;
 };
 
 static struct worker_manager_t worker_manager = {};
@@ -73,6 +79,7 @@ static struct worker_info_t *alloc_worker_info() {
     pthread_mutex_init(&winfo->m_client, NULL);
     INIT_LIST_HEAD(&winfo->list);
     INIT_LIST_HEAD(&winfo->h_client);
+    CLR(winfo);
   }
 
   return winfo;
@@ -109,47 +116,51 @@ static void free_worker_info(struct worker_info_t *winfo) {
   }
 }
 
-static void *worker_sending(void *data) {
-  struct worker_info_t *winfo = (struct worker_info_t *)data;
+static int multicast_message(struct worker_info_t *winfo) {
+  struct list_head headers;
+  char buf[LD_MAX];
+  frame_t *frame;
+
+  INIT_LIST_HEAD(&headers);
+
+  while(! list_empty(&winfo->h_client)) {
+    if((frame = (frame_t *)dequeue(winfo->destination)) != NULL) {
+      struct client_info_t *cinfo, *c;
+      list_for_each_entry_safe(cinfo, c, &winfo->h_client, list) {
+        if(is_socket_valid(cinfo->sock) == RET_SUCCESS) {
+          if(cinfo->id != NULL) {
+            memset(buf, 0, LD_MAX);
+            int len = sprintf(buf, "subscription: %s", cinfo->id);
+            stomp_setdata(buf, len, &headers, NULL);
+          }
+
+          stomp_send_message(cinfo->sock, frame, &headers);
+        } else {
+          pthread_mutex_lock(&winfo->m_client);
+          {
+            list_del(&cinfo->list);
+          }
+          pthread_mutex_unlock(&winfo->m_client);
+        }
+      }
+    }
+  }
+
+  return RET_SUCCESS;
+}
+
+static int unicast_message(struct worker_info_t *winfo) {
+  struct client_info_t *cinfo;
   struct list_head headers;
   frame_t *frame;
   char buf[LD_MAX];
-  int len;
-
-  assert(winfo != NULL);
-  assert(winfo->destination != NULL);
 
   INIT_LIST_HEAD(&headers);
 
   struct list_head *curr = winfo->h_client.next;
   while(! list_empty(&winfo->h_client)) {
-    struct client_info_t *cinfo = list_entry(curr, struct client_info_t, list);
-
-    if(cinfo->id != NULL) {
-      memset(buf, 0, LD_MAX);
-      len = sprintf(buf, "subscription: %s", cinfo->id);
-      stomp_setdata(buf, len, &headers, NULL);
-    }
-
-    if(is_socket_valid(cinfo->sock) != RET_SUCCESS) {
-      pthread_mutex_lock(&winfo->m_client);
-      {
-        curr = curr->next;
-        if(curr == &winfo->h_client) {
-          curr = winfo->h_client.next;
-        }
-        list_del(&cinfo->list);
-      }
-      pthread_mutex_unlock(&winfo->m_client);
-      continue;
-    }
-
-    if((frame = (frame_t *)dequeue(winfo->destination)) != NULL) {
-      stomp_send_message(cinfo->sock, frame, &headers);
-
-      free_frame(frame);
-    }
-
+    cinfo = list_entry(curr, struct client_info_t, list);
+    // set next pointer
     pthread_mutex_lock(&winfo->m_client);
     {
       curr = curr->next;
@@ -158,6 +169,42 @@ static void *worker_sending(void *data) {
       }
     }
     pthread_mutex_unlock(&winfo->m_client);
+
+    if(cinfo->id != NULL) {
+      memset(buf, 0, LD_MAX);
+      int len = sprintf(buf, "subscription: %s", cinfo->id);
+      stomp_setdata(buf, len, &headers, NULL);
+    }
+
+    if(is_socket_valid(cinfo->sock) != RET_SUCCESS) {
+      pthread_mutex_lock(&winfo->m_client);
+      {
+        list_del(&cinfo->list);
+      }
+      pthread_mutex_unlock(&winfo->m_client);
+    } else {
+      if((frame = (frame_t *)dequeue(winfo->destination)) != NULL) {
+        stomp_send_message(cinfo->sock, frame, &headers);
+
+        free_frame(frame);
+      }
+    }
+  }
+
+  return RET_SUCCESS;
+}
+
+static void *worker_sending(void *data) {
+  struct worker_info_t *winfo = (struct worker_info_t *)data;
+
+  assert(winfo != NULL);
+  assert(winfo->destination != NULL);
+
+  // Because inter main-loop is too hot, so it should be keeped simple.
+  if(GET(winfo, IS_TOPIC)) {
+    multicast_message(winfo);
+  } else {
+    unicast_message(winfo);
   }
 
   pthread_mutex_lock(&worker_manager.mutex);
@@ -184,6 +231,11 @@ int stomp_sending_register(int sock, char *destination, char *id) {
     debug("[stomp_sending_register] (created) %s [%d]", destination, len);
 
     winfo = alloc_worker_info();
+
+    // checks destination is topic, or not
+    if(strncmp(destination, "/topic/", 7) == 0) {
+      SET(winfo, IS_TOPIC);
+    }
 
     winfo->destination = (char *)malloc(len + 1);
     memcpy(winfo->destination, destination, len);
