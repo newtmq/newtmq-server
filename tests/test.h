@@ -8,4 +8,6 @@
 
 #define TEST_CONFIG ".test.conf"
 
+void init_config(void);
+
 #endif

@@ -1,15 +1,11 @@
 #include <test.h>
 
-#include <sys/types.h>
-#include <sys/socket.h>
 #include <string.h>
-#include <unistd.h>
 #include <pthread.h>
 
 #include <newt/common.h>
 
 #include "client.h"
-#include "daemon.h"
 #include "connection.h"
 
 #define BUFLEN 512
@@ -24,8 +20,9 @@ static void *subscriber(void *data) {
     "\n",
     NULL,
   };
-  int i, sock = *(int *)data;
+  int sock = connect_server();
 
+  int i;
   for(i=0; msg[i] != NULL; i++) {
     mysend(sock, msg[i], strlen(msg[i]), 0);
   }
@@ -55,11 +52,13 @@ static void *subscriber(void *data) {
     free(reply_dest);
   }
 
+  close(sock);
+
   return NULL;
 }
 
 static void test_reply_to(void) {
-  char buf[BUFLEN*2] = {0};
+  char buf[BUFLEN] = {0};
   char *additional_headers[] = {
     "destination:/queue/test\n",
     "reply-to:/temp-queue/test\n",
@@ -76,7 +75,7 @@ static void test_reply_to(void) {
   // success to send test message
   CU_ASSERT(stomp_send(sock, "hoge\n", 5, additional_headers, 2) == RET_SUCCESS);
 
-  pthread_create(&thread_id, NULL, &subscriber, &sock);
+  pthread_create(&thread_id, NULL, &subscriber, NULL);
   pthread_join(thread_id, NULL);
 
   // receive replied MESSAGE frame
