@@ -11,7 +11,9 @@ static void test_begin(void) {
   char buf[512];
   char *msg[] = {
     "BEGIN\n",
+    "content-length:0\n",
     "transaction:tx1\n",
+    "\n",
     NULL,
   };
   int sock, len, i;
@@ -21,7 +23,7 @@ static void test_begin(void) {
 
   for(i=0; msg[i] != NULL; i++) {
     len = send(sock, msg[i], strlen(msg[i]), 0);
-    assert(len > 0);
+    CU_ASSERT(len > 0);
   }
   send(sock, "\0", 1, 0);
 

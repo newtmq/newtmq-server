@@ -22,28 +22,37 @@ int connect_server() {
   return sock;
 }
 
+int connect_ctrl_server() {
+  newt_config config = {0};
+  int sock = -1;
+
+  set_config(&config);
+  if(config.port > 0) {
+    sock = open_connection(config.ctrl_port);
+  }
+
+  return sock;
+}
+
 int stomp_connect(int sock) {
   char buf[512];
   char *msg[] = {
     "CONNECT\n",
+    "content-length:0\n",
     "accept-version:1.2\n",
     "login:guest\n",
     "passcode:guest\n",
+    "\n",
     NULL,
   };
 
   int i;
   for(i=0; msg[i] != NULL; i++) {
-    if(send(sock, msg[i], strlen(msg[i]), 0) <= 0) {
+    if(mysend(sock, msg[i], strlen(msg[i]), 0) <= 0) {
       return RET_ERROR;
     }
   }
-  send(sock, "\0", 1, 0);
-
-  struct timeval tv;
-  tv.tv_sec = RECV_TIMEOUT;
-  tv.tv_usec = 0;
-  setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, (char *)&tv, sizeof(tv));
+  mysend(sock, "\0", 1, 0);
 
   int ret = RET_ERROR;
   while(recv(sock, buf, sizeof(buf), 0) > 0) {
@@ -55,26 +64,31 @@ int stomp_connect(int sock) {
   return ret;
 }
 
-int stomp_send(int sock, char *data, int len) {
-  char *msg[] = {
-    "SEND\n",
-    "destination:/queue/test\n",
-    "\n",
-    NULL,
-  };
+int stomp_send(int sock, char *data, int len, char **headers, int header_len) {
+  char hdr_buf[LD_MAX];
+  int i, hdrlen;
 
-  int i;
-  for(i=0; msg[i] != NULL; i++) {
-    if(send(sock, msg[i], strlen(msg[i]), 0) <= 0) {
-      return RET_ERROR;
-    }
+  // send command
+  mysend(sock, "SEND\n", 5, 0);
+
+  // send headers
+  for(i=0; i<header_len; i++) {
+    mysend(sock, headers[i], strlen(headers[i]), 0);
   }
+
+  hdrlen = sprintf(hdr_buf, "content-length:%d\n", len);
+  hdr_buf[hdrlen] = '\0';
+  mysend(sock, hdr_buf, strlen(hdr_buf), 0);
+
+  mysend(sock, "\n", 1, 0);
+
+  // send data
   if(data != NULL) {
-    if(send(sock, data, len, 0) <= 0) {
+    if(mysend(sock, data, len, 0) <= 0) {
       return RET_ERROR;
     }
   }
-  send(sock, "\0", 1, 0);
+  mysend(sock, "\0", 1, 0);
 
   return RET_SUCCESS;
 }

@@ -130,13 +130,13 @@ subscribe_t *get_subscriber(char *id) {
 int iterate_header(struct list_head *h_header, stomp_header_handler_t *handlers, void *data) {
   linedata_t *line;
 
-  list_for_each_entry(line, h_header, l_frame) {
+  list_for_each_entry(line, h_header, list) {
     stomp_header_handler_t *h;
     int i;
 
     for(i=0; h=&handlers[i], h->name!=NULL; i++) {
       if(strncmp(line->data, h->name, strlen(h->name)) == 0) {
-        int ret = (*h->handler)((line->data + strlen(h->name)), data);
+        int ret = (*h->handler)((line->data + strlen(h->name)), data, line);
         if(ret == RET_ERROR) {
           return RET_ERROR;
         }
@@ -155,33 +155,11 @@ void *stomp_management_worker(void *data) {
   while(1) {
     frame = get_frame_from_bucket();
     if(frame != NULL) {
-      debug("(stomp_management_worker) frame_name: %s", frame->name);
+      debug("(stomp_management_worker) (%p) frame_name: %s", frame, frame->name);
 
       handle_frame(frame);
     }
   }
 
   return NULL;
-}
-
-stomp_msginfo_t *alloc_msginfo() {
-  stomp_msginfo_t *ret;
-
-  ret = (stomp_msginfo_t *)malloc(sizeof(stomp_msginfo_t));
-  if(ret == NULL) {
-    err("[alloc_msginfo] failed to allocate memory");
-    return NULL;
-  }
-
-  /* Initialize object */
-  memset(ret, 0, sizeof(stomp_msginfo_t));
-  INIT_LIST_HEAD(&ret->list);
-
-  return ret;
-}
-
-void free_msginfo(stomp_msginfo_t *msginfo) {
-  if(msginfo != NULL) {
-    free(msginfo);
-  }
 }

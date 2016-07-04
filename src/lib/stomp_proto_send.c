@@ -5,58 +5,52 @@
 
 #include <assert.h>
 
-#define QNAME_LENGTH (256)
+#define UNIQUE_STR_LEN 10
 
 struct attrinfo_t {
+  stomp_conninfo_t *cinfo;
   char *qname;
   char *tid;
   char *receipt_id;
+  char *reply_to;
 };
 
-static int transaction_callback(frame_t *frame) {
-  int ret = RET_ERROR;
+static int handler_destination(char *context, void *data, linedata_t *_hdr) {
+  struct attrinfo_t *attrinfo = (struct attrinfo_t *)data;
 
-  if(frame != NULL && frame->transaction_data != NULL) {
-    enqueue((void *)frame, (char *)frame->transaction_data);
+  attrinfo->qname = context;
 
-    ret = RET_SUCCESS;
-  }
-
-  return ret;
+  return RET_SUCCESS;
 }
 
-static int handler_destination(char *context, void *data) {
+static int handler_transaction(char *context, void *data, linedata_t *_hdr) {
   struct attrinfo_t *attrinfo = (struct attrinfo_t *)data;
-  int ret = RET_ERROR;
 
-  if(attrinfo != NULL) {
-    attrinfo->qname = context;
+  attrinfo->tid = context;
 
-    ret = RET_SUCCESS;
-  }
-
-  return ret;
+  return RET_SUCCESS;
 }
 
-static int handler_transaction(char *context, void *data) {
+static int handler_receipt(char *context, void *data, linedata_t *_hdr) {
   struct attrinfo_t *attrinfo = (struct attrinfo_t *)data;
-  int ret = RET_ERROR;
 
-  if(attrinfo != NULL) {
-    attrinfo->tid = context;
+  attrinfo->receipt_id = context;
 
-    ret = RET_SUCCESS;
-  }
-
-  return ret;
+  return RET_SUCCESS;
 }
 
-static int handler_receipt(char *context, void *data) {
+static int handler_reply_to(char *context, void *data, linedata_t *hdr) {
   struct attrinfo_t *attrinfo = (struct attrinfo_t *)data;
+  int context_len = (int)strlen(context);
   int ret = RET_ERROR;
 
-  if(attrinfo != NULL) {
-    attrinfo->receipt_id = context;
+  assert(attrinfo != NULL);
+
+  if(context_len + UNIQUE_STR_LEN < LD_MAX) {
+    attrinfo->reply_to = context;
+
+    sprintf(context, "%s%s", context, attrinfo->cinfo->id);
+    hdr->len += CONN_ID_LEN;
 
     ret = RET_SUCCESS;
   }
@@ -68,6 +62,7 @@ static stomp_header_handler_t handlers[] = {
   {"destination:", handler_destination},
   {"transaction:", handler_transaction},
   {"receipt:", handler_receipt},
+  {"reply-to:", handler_reply_to},
   {0},
 };
 
@@ -77,10 +72,16 @@ frame_t *handler_stomp_send(frame_t *frame) {
   assert(frame != NULL);
   assert(frame->cinfo != NULL);
 
+  attrinfo.cinfo = frame->cinfo;
+
   if(iterate_header(&frame->h_attrs, handlers, &attrinfo) == RET_ERROR) {
     err("(handle_stomp_send) validation error");
     stomp_send_error(frame->sock, "failed to validate header\n");
     return NULL;
+  }
+
+  if(attrinfo.reply_to != NULL) {
+    stomp_sending_register(frame->sock, attrinfo.reply_to, NULL);
   }
 
   if(attrinfo.qname == NULL) {

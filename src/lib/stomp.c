@@ -2,21 +2,25 @@
 #include <newt/common.h>
 #include <newt/signal.h>
 #include <newt/logger.h>
-
+#include <newt/queue.h>
+#include <newt/connection.h>
 #include <newt/stomp_management_worker.h>
 
 #include <assert.h>
+#include <sys/ioctl.h>
+
+#define RECV_BUFSIZE (4096)
 
 struct stomp_frame_info {
   char *name;
   int len;
 };
 static struct stomp_frame_info finfo_arr[] = {
-  {"ACK",         3},
   {"SEND",        4},
   {"SUBSCRIBE",   9},
   {"CONNECT",     7},
   {"STOMP",       5},
+  {"ACK",         3},
   {"BEGIN",       5},
   {"COMMIT",      6},
   {"ABORT",       5},
@@ -31,8 +35,6 @@ frame_bucket_t stomp_frame_bucket;
 frame_t *alloc_frame() {
   frame_t *ret;
 
-  debug("(alloc_frame)");
-
   ret = (frame_t *)malloc(sizeof(frame_t));
   if(ret == NULL) {
     return NULL;
@@ -40,15 +42,21 @@ frame_t *alloc_frame() {
 
   /* Initialize frame_t object */
   memset(ret->name, 0, FNAME_LEN);
+  memset(ret->id, 0, FRAME_ID_LEN);
 
   INIT_LIST_HEAD(&ret->h_attrs);
   INIT_LIST_HEAD(&ret->h_data);
   INIT_LIST_HEAD(&ret->l_bucket);
   INIT_LIST_HEAD(&ret->l_transaction);
 
+  pthread_mutex_init(&ret->mutex_header, NULL);
+  pthread_mutex_init(&ret->mutex_body, NULL);
+
   ret->sock = 0;
   ret->cinfo = NULL;
   ret->status = STATUS_BORN;
+  ret->contentlen = -1;
+  ret->has_contentlen = 0;
 
   ret->transaction_callback = NULL;
   ret->transaction_data = NULL;
@@ -61,14 +69,16 @@ void free_frame(frame_t *frame) {
 
   /* delete header */
   if(! list_empty(&frame->h_attrs)) {
-    list_for_each_entry_safe(data, l, &frame->h_attrs, l_frame) {
+    list_for_each_entry_safe(data, l, &frame->h_attrs, list) {
+      list_del(&data->list);
       free(data);
     }
   }
 
   /* delete body */
   if(! list_empty(&frame->h_data)) {
-    list_for_each_entry_safe(data, l, &frame->h_data, l_frame) {
+    list_for_each_entry_safe(data, l, &frame->h_data, list) {
+      list_del(&data->list);
       free(data);
     }
   }
@@ -88,62 +98,102 @@ void free_frame(frame_t *frame) {
   free(frame);
 }
 
-char *ssplit(char *str, char *end) {
-  char *curr = str;
+static int ssplit(char *start, char *end, int *len, int is_body) {
+  char *p;
+  int count = 0;
+  int ret = RET_SUCCESS;
 
-  assert(curr != NULL);
+  assert(start != NULL);
+  assert(end != NULL);
 
-  while(! (*curr == '\n' || *curr == '\0')) {
-    if(curr >= end) {
-      char debug_buf[LD_MAX] = {0};
+  int is_separation = IS_BL(start);
+  if(! is_body) {
+    is_separation |= IS_NL(start);
+  }
 
-      memcpy(debug_buf, str, (int)(end - str));
+  if(is_separation) {
+    *len = 0;
+
+    return RET_SUCCESS;
+  }
+
+  do {
+    count++;
+    p = start + count;
+
+    if(p >= end) {
+      ret = RET_ERROR;
+    }
+  } while(! (*p == '\0' || (*p == '\n' && ! is_body) || p >= end || count >= LD_MAX));
+
+  *len = count;
+
+  return ret;
+}
+
+static int frame_setname(char *data, int len, frame_t *frame) {
+  int i, ret = RET_ERROR;
+  struct stomp_frame_info *finfo;
+
+  assert(frame != NULL);
+
+  for(i=0; finfo=&finfo_arr[i], finfo!=NULL; i++) {
+    if(len < finfo->len) {
+      continue;
+    } else if(finfo->name == NULL) {
+      break;
+    }
+
+    if(strncmp(data, finfo->name, finfo->len) == 0) {
+      memcpy(frame->name, data, finfo->len);
+
+      CLR(frame);
+      SET(frame, STATUS_INPUT_HEADER);
+
+      ret = RET_SUCCESS;
+      break;
+    }
+  }
+
+  return ret;
+}
+
+linedata_t *stomp_setdata(char *data, int len, struct list_head *head, pthread_mutex_t *lock) {
+  linedata_t *attr;
+  int offset = 0;
+  int attrlen = len;
+
+  do {
+    if(attrlen > LD_MAX) {
+      attrlen = LD_MAX;
+    }
+
+    attr = (linedata_t *)malloc(sizeof(linedata_t));
+    if(attr == NULL) {
+      warn("failed to allocate linedata_t");
       return NULL;
     }
 
-    curr++;
-  }
+    attr->len = attrlen;
+    memset(attr->data, 0, LD_MAX);
+    memcpy(attr->data, data + offset, attrlen);
+    INIT_LIST_HEAD(&attr->list);
 
-  return curr;
-}
+    if(lock != NULL) {
+      pthread_mutex_lock(lock);
 
-static void frame_setname(char *data, int len, frame_t *frame) {
-  int namelen = len;
+      list_add_tail(&attr->list, head);
 
-  debug("(frame_setname) name: %s [%d]", data, len);
+      pthread_mutex_unlock(lock);
+    } else {
+      list_add_tail(&attr->list, head);
+    }
 
-  if(namelen > FNAME_LEN) {
-    namelen = FNAME_LEN;
-  }
-  memcpy(frame->name, data, namelen);
+    offset += attrlen;
+    attrlen = len - offset;
+  } while(offset < len);
 
-  CLR(frame);
-  SET(frame, STATUS_INPUT_NAME);
-}
-
-static int frame_setdata(char *data, int len, struct list_head *head) {
-  linedata_t *attr;
-  int attrlen = len;
-
-  if(attrlen > LD_MAX) {
-    attrlen = LD_MAX;
-  }
-
-  attr = (linedata_t *)malloc(sizeof(linedata_t));
-  if(attr == NULL) {
-    warn("failed to allocate linedata_t");
-    return RET_ERROR;
-  }
-
-  memset(attr, 0, sizeof(linedata_t));
-  memcpy(attr->data, data, attrlen);
-  INIT_LIST_HEAD(&attr->l_frame);
-
-  list_add_tail(&attr->l_frame, head);
-
-  debug("(frame_setdata) attr-data > %s [%d]", attr->data, attrlen);
-
-  return RET_SUCCESS;
+  return attr;
 }
 
 static int cleanup(void *data) {
@@ -166,7 +216,8 @@ static void frame_finish(frame_t *frame) {
   CLR(frame);
   SET(frame, STATUS_IN_BUCKET);
 
-  debug("(frame_finish) %s", frame->name);
+  // set frame-id
+  gen_random(frame->id, FRAME_ID_LEN);
 
   pthread_mutex_lock(&stomp_frame_bucket.mutex);
   { /* thread safe */
@@ -175,50 +226,75 @@ static void frame_finish(frame_t *frame) {
   pthread_mutex_unlock(&stomp_frame_bucket.mutex);
 }
 
-static int frame_update(char *line, int len, frame_t *frame) {
+static int get_contentlen(char *input) {
+  return atoi(input + 15);
+}
 
-  debug("(frame_update) >> %s [%d]", line, len);
+static int is_contentlen(char *input, int len) {
+  if(len > 15 && strncmp(input, "content-length:", 15) == 0) {
+    return RET_SUCCESS;
+  }
+  return RET_ERROR;
+}
 
-  if(IS_BL(line)) {
-    if(GET(frame, STATUS_INPUT_NAME) || GET(frame, STATUS_INPUT_HEADER) || GET(frame, STATUS_INPUT_BODY) ) {
-      frame_finish(frame);
+static int frame_update(char *line, int len, stomp_conninfo_t *cinfo) {
+  frame_t *frame = cinfo->frame;
+  int ret = 0;
+  assert(frame != NULL);
 
-      return 1;
+  if(GET(frame, STATUS_BORN)) {
+    if(frame_setname(line, len, frame) == RET_ERROR) {
+      return -1;
     }
-  } else if(IS_NL(line)) {
-    /* The case of blankline is inputed */
-    if(GET(frame, STATUS_INPUT_HEADER)) {
-      if(strcmp(frame->name, "SEND") == 0 || strcmp(frame->name, "MESSAGE") == 0) {
+    debug("[frame_update] (%p) succeed in setting frame-name: %s", frame, frame->name);
+  } else if(GET(frame, STATUS_INPUT_HEADER)) {
+    if(IS_NL(line)) {
+      if(frame->contentlen > 0) {
         CLR(frame);
         SET(frame, STATUS_INPUT_BODY);
-      } else {
+
+        return 0;
+      } else if(frame->contentlen == 0) {
         frame_finish(frame);
 
         return 1;
+      } else {
+        while(! (IS_NL(line))) {
+          line++;
+          len -= 1;
+        }
       }
-    } else if(GET(frame, STATUS_INPUT_BODY)) {
-      frame_finish(frame);
-
-      return 1;
     }
-  } else {
-    if(GET(frame, STATUS_BORN)) {
-      frame_setname(line, len, frame);
-    } else if(GET(frame, STATUS_INPUT_NAME)) {
-      /* In some case, a blank line may inserted between name and headers */
-      DEL(frame, STATUS_INPUT_NAME);
-      SET(frame, STATUS_INPUT_HEADER);
 
-      frame_setdata(line, len, &frame->h_attrs);
-    } else if(GET(frame, STATUS_INPUT_HEADER)) {
-      frame_setdata(line, len, &frame->h_attrs);
-    } else if(GET(frame, STATUS_INPUT_BODY)) {
-      debug("(frame_update) (setdata) >> %s [%d]", line, len);
-      frame_setdata(line, len, &frame->h_data);
+    if(len > 0) {
+      if(is_contentlen(line, len) == RET_SUCCESS) {
+        frame->contentlen = get_contentlen(line);
+        debug("[frame_update] (%p) succeed in setting contentlen: %d", frame, frame->contentlen);
+      }
+
+      stomp_setdata(line, len, &frame->h_attrs, &frame->mutex_header);
+    }
+  } else if(GET(frame, STATUS_INPUT_BODY)) {
+    if(len > 0) {
+      frame->has_contentlen += len;
+      stomp_setdata(line, len, &frame->h_data, &frame->mutex_body);
+
+      debug("[frame_update] (%p) succeed in set body [%d/%d]", frame, frame->contentlen, frame->has_contentlen);
+    }
+
+    if(IS_BL(line)) {
+      warn("[frame_update] (%p) got blank-line [contentlen:%d/%d]", frame, frame->contentlen, frame->has_contentlen);
+    }
+
+    if(frame->contentlen <= frame->has_contentlen) {
+      frame_finish(frame);
+      debug("[frame_update] (%p) succeed in parsing frame!!", frame);
+
+      ret = 1;
     }
   }
 
-  return 0;
+  return ret;
 }
 
 int stomp_init() {
@@ -230,24 +306,24 @@ int stomp_init() {
   return RET_SUCCESS;
 }
 
-stomp_conninfo_t *stomp_conn_init() {
-  stomp_conninfo_t *ret;
+static stomp_conninfo_t *conn_init() {
+  stomp_conninfo_t *ret = NULL;
 
   ret = (stomp_conninfo_t *)malloc(sizeof(stomp_conninfo_t));
   if(ret != NULL) {
     memset(ret, 0, sizeof(stomp_conninfo_t));
 
     /* intiialize params */
+    gen_random(ret->id, CONN_ID_LEN);
     ret->status = 0;
-    ret->remained_data = NULL;
-    SET(ret, STATE_INIT);
-    memset(ret->line_buf, 0, LD_MAX);
+    ret->prev_data = NULL;
+    ret->prev_len = 0;
   }
 
   return ret;
 }
 
-int stomp_conn_finish(void *data) {
+static int conn_finish(void *data) {
   stomp_conninfo_t *cinfo = (stomp_conninfo_t *)data;
   int ret = RET_ERROR;
 
@@ -264,116 +340,171 @@ int stomp_conn_finish(void *data) {
   return ret;
 }
 
-static int do_stomp_recv_data(char *line, int len, int sock, void *_cinfo) {
-  stomp_conninfo_t *cinfo = (stomp_conninfo_t *)_cinfo;
+static int cleanup_worker(void *data) {
+  struct conninfo *cinfo = (struct conninfo *)data;
+  int ret = RET_ERROR;
 
-  if(cinfo == NULL || (cinfo->frame == NULL && len == 0)) {
-    return RET_ERROR;
-  }
+  if(cinfo != NULL) {
+    close(cinfo->sock);
 
-  debug("(do_stomp_recv_data) %s [%d]", line, len);
-
-  if(IS_BL(line) || IS_NL(line)) {
-    if(frame_update(line, len, cinfo->frame) > 0) {
-      /* In this case, some problem is occurred */
-      cinfo->frame = NULL;
+    if(cinfo->protocol_data != NULL) {
+      free(cinfo->protocol_data);
     }
 
-    return RET_SUCCESS;
+    free(cinfo);
+
+    ret = RET_SUCCESS;
   }
 
-  if(cinfo->frame != NULL) {
-    int i;
-    struct stomp_frame_info *finfo;
+  return ret;
+}
 
-    for(i=0; finfo=&finfo_arr[i], finfo!=NULL; i++) {
-      if(len < finfo->len || finfo->name == NULL) {
-        break;
-      }
+void *stomp_conn_worker(struct conninfo *cinfo) {
+  sighandle_t *handler;
+  char buf[RECV_BUFSIZE];
 
-      if(strncmp(line, finfo->name, finfo->len) == 0) {
-        debug("(stomp_recv_data) <matched %s [%d]>", finfo->name, finfo->len);
-        frame_finish(cinfo->frame);
-        cinfo->frame = NULL;
-        break;
-      }
-    }
+  if(cinfo == NULL) {
+    err("[connection_co_worker] thread argument is NULL");
+    return NULL;
   }
+
+  cinfo->protocol_data = (void *)conn_init();
+
+  /* initialize processing after established connection */
+  handler = set_signal_handler(cleanup_worker, &cinfo);
+
+  int len;
+  do {
+    stomp_conninfo_t *stomp_cinfo = (stomp_conninfo_t *)cinfo->protocol_data;
+    frame_t *frame = stomp_cinfo->frame;
+
+    memset(buf, 0, RECV_BUFSIZE);
+
+    len = recv(cinfo->sock, buf, sizeof(buf), 0);
+
+    recv_data(buf, len, cinfo->sock, cinfo->protocol_data);
+  } while(len != 0);
+
+  // cancel to parse of the current frame
+  conn_finish(cinfo->protocol_data);
+
+  del_signal_handler(handler);
+
+  return NULL;
+}
+
+static void prepare_frame(stomp_conninfo_t *cinfo, int sock) {
+  assert(cinfo != NULL);
 
   if(cinfo->frame == NULL) {
     frame_t *frame = alloc_frame(sock);
-    if(frame == NULL) {
-      perror("[stomp_recv_data] failed to allocate memory");
-      return RET_ERROR;
-    }
+
+    assert(frame != NULL);
 
     /* initialize frame params */
     frame->sock = sock;
     frame->cinfo = cinfo;
 
-    /* to reference this values over the 'stomp_recv_data' calling */
+    /* to reference this values over the 'recv_data' calling */
     cinfo->frame = frame;
   }
-  
-  if(frame_update(line, len, cinfo->frame) > 0) {
-    /* In this case, some problem is occurred */
-    cinfo->frame = NULL;
-  }
-
-  return RET_SUCCESS;
 }
 
-int stomp_recv_data(char *recv_data, int len, int sock, void *_cinfo) {
+static int is_frame_name(const char *name, int len) {
+  int i;
+  struct stomp_frame_info *finfo;
+
+  for(i=0; finfo=&finfo_arr[i], finfo!=NULL; i++) {
+    if(len < finfo->len) {
+      continue;
+    } else if(finfo->len == 0) {
+      break;
+    }
+    if(strncmp(name, finfo->name, finfo->len) == 0) {
+      return RET_SUCCESS;
+    }
+  }
+
+  return RET_ERROR;
+}
+
+int recv_data(char *recv_data, int len, int sock, void *_cinfo) {
   stomp_conninfo_t *cinfo = (stomp_conninfo_t *)_cinfo;
-  char *curr, *next, *end;
+  char *curr, *next, *end, *line;
 
   curr = recv_data;
-  end = (recv_data + len - 1);
-  while(curr <= end) {
-    int line_len;
-    int line_prefix = 0;
+  end = (recv_data + len);
 
-    if(cinfo->remained_data != NULL) {
-      memcpy(cinfo->line_buf, cinfo->remained_data, cinfo->remained_size);
-      free(cinfo->remained_data);
+  while(curr < end) {
+    int line_len, ret;
+    int is_body_input = cinfo->frame != NULL && GET(cinfo->frame, STATUS_INPUT_BODY);
 
-      cinfo->remained_data = NULL;
-      line_prefix = cinfo->remained_size;
-    }
-
-    next = ssplit(curr, end);
-    if(next == NULL) {
-      int remained_size = (int)(end - curr) + 1;
-      char *remained_data = (char *)malloc(remained_size);
-
-      if(remained_data != NULL) {
-        memcpy(remained_data, curr, remained_size);
-
-        cinfo->remained_data = remained_data;
-        cinfo->remained_size = remained_size;
+    // in header parsing
+    ret = ssplit(curr, end, &line_len, is_body_input);
+    if(ret == RET_ERROR && is_frame_name(curr, line_len) == RET_ERROR) {
+      char *data;
+      if(cinfo->prev_data != NULL) {
+        data = realloc(cinfo->prev_data, cinfo->prev_len + LD_MAX);
+      } else {
+        data = malloc(LD_MAX * 2);
       }
+
+      memset(data + cinfo->prev_len, 0, LD_MAX);
+      strncpy(data + cinfo->prev_len, curr, line_len);
+
+      cinfo->prev_data = data;
+      cinfo->prev_len += line_len;
 
       break;
     }
 
-    line_len = (int)(next - curr);
-    if(line_len > LD_MAX) {
-      line_len = LD_MAX;
-    }
-
-    if(line_len > 0) {
-      memcpy((cinfo->line_buf + line_prefix), curr, line_len);
-      cinfo->line_buf[line_len + line_prefix] = '\0';
-    } else if(line_prefix > 0) {
-      cinfo->line_buf[line_prefix] = '\0';
+    // set next position because following processing may change 'line_len' variable
+    if(is_body_input) {
+      next = curr + line_len;
     } else {
-      cinfo->line_buf[0] = *curr;
-      cinfo->line_buf[1] = '\0';
+      next = curr + line_len + 1;
     }
 
-    do_stomp_recv_data(cinfo->line_buf, line_len + line_prefix, sock, _cinfo);
+    if(cinfo->prev_data != NULL) {
+      line = cinfo->prev_data;
 
-    curr = next + 1;
+      strncpy(line + cinfo->prev_len, curr, line_len);
+
+      line_len += cinfo->prev_len;
+      line[line_len] = '\0';
+    } else {
+      line = curr;
+    }
+
+    debug("[recv_data] correct_line: %s [%d]", line, line_len);
+
+    if(cinfo->frame != NULL || line_len > 0) {
+      prepare_frame(cinfo, sock);
+
+      ret = frame_update(line, line_len, cinfo);
+      debug("[frame_update] (ret/frame_update) %d", ret);
+      if(ret > 0) {
+        cinfo->frame = NULL;
+        if(is_body_input > 0) {
+          next++;
+        }
+      } else if(ret < 0) {
+        stomp_send_error(sock, "failed to parse frame");
+      }
+
+      if(cinfo->frame != NULL) {
+        debug("[recv_data] content [%d/%d]", cinfo->frame->contentlen, cinfo->frame->has_contentlen);
+      }
+    }
+
+    if(cinfo->prev_data != NULL) {
+      free(cinfo->prev_data);
+
+      cinfo->prev_data = NULL;
+      cinfo->prev_len = 0;
+    }
+
+    curr = next;
   }
 
   return RET_SUCCESS;
@@ -407,9 +538,9 @@ void stomp_send_error(int sock, char *body) {
 
   if(is_socket_valid(sock) == RET_SUCCESS) {
     for(i=0; msg[i] != NULL; i++) {
-      send_msg(sock, msg[i]);
+      send_msg(sock, msg[i], strlen(msg[i]));
     }
-    send_msg(sock, NULL);
+    send_msg(sock, "\0", 1);
   }
 }
 
@@ -420,8 +551,45 @@ void stomp_send_receipt(int sock, char *id) {
   if(sock > 0 && id != NULL) {
     sprintf(buf, "receipt-id:%s\n", id);
 
-    send_msg(sock, "RECEIPT\n");
-    send_msg(sock, buf);
-    send_msg(sock, NULL);
+    send_msg(sock, "RECEIPT\n", 8);
+    send_msg(sock, buf, strlen(buf));
+    send_msg(sock, "\0", 1);
   }
+}
+
+void stomp_send_message(int sock, frame_t *frame, struct list_head *headers) {
+  linedata_t *header;
+  linedata_t *body;
+
+  send_msg(sock, "MESSAGE\n", 8);
+
+  list_for_each_entry(header, &frame->h_attrs, list) {
+    send_msg(sock, header->data, header->len);
+    send_msg(sock, "\n", 1);
+  }
+
+  if(headers != NULL) {
+    list_for_each_entry(header, headers, list) {
+      send_msg(sock, header->data, header->len);
+      send_msg(sock, "\n", 1);
+    }
+  }
+
+  // send static headers
+  {
+    send_msg(sock, "message-id: ", 12);
+    send_msg(sock, frame->id, FRAME_ID_LEN);
+    send_msg(sock, "\n", 1);
+  }
+
+  if(! list_empty(&frame->h_data)) {
+    // separation of headers and body
+    send_msg(sock, "\n", 1);
+
+    list_for_each_entry(body, &frame->h_data, list) {
+      send_msg(sock, body->data, body->len);
+    }
+  }
+
+  send_msg(sock, "\0", 1);
 }

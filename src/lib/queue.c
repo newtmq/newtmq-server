@@ -2,10 +2,12 @@
 #include <string.h>
 #include <stdlib.h>
 #include <limits.h>
+#include <assert.h>
 
 #include <newt/common.h>
 #include <newt/list.h>
 #include <newt/queue.h>
+#include <newt/logger.h>
 
 struct list_head *queuebox[QB_SIZE] = {0};
 static pthread_mutex_t queuebox_lock;
@@ -39,9 +41,14 @@ static struct queue *create_queue() {
   q = (struct queue*)malloc(sizeof(struct queue));
   if(q != NULL) {
     q->hashnum = 0;
+    q->count = 0;
+
     pthread_mutex_init(&q->mutex, NULL);
+
     INIT_LIST_HEAD(&q->l_box);
     INIT_LIST_HEAD(&q->h_entry);
+
+    memset(q->name, 0, QNAME_LENGTH);
   }
 
   return q;
@@ -102,6 +109,13 @@ static struct queue *get_queue(char *qname) {
     if(queue != NULL) {
       queue->hashnum = hashnum;
 
+      // set qname
+      int namelen = strlen(qname);
+      if(namelen > QNAME_LENGTH) {
+        namelen = QNAME_LENGTH;
+      }
+      memcpy(queue->name, qname, namelen);
+
       pthread_mutex_lock(&queuebox_lock);
       {
         list_add(&queue->l_box, queuebox[index]);
@@ -136,6 +150,7 @@ int enqueue(void *data, char *qname) {
   pthread_mutex_lock(&q->mutex);
   {
     list_add_tail(&e->l_queue, &q->h_entry);
+    q->count += 1;
   }
   pthread_mutex_unlock(&q->mutex);
 
@@ -164,6 +179,34 @@ void *dequeue(char *qname) {
   pthread_mutex_unlock(&q->mutex);
 
   return ret;
+}
+
+int get_queuelist(struct list_head *head) {
+  int i, count = 0;
+
+  assert(head != NULL);
+
+  INIT_LIST_HEAD(head);
+
+  for(i=0; i<QB_SIZE; i++) {
+    if(queuebox[i] != NULL) {
+      struct queue *queue;
+
+      list_for_each_entry(queue, queuebox[i], l_box) {
+        struct q_entry *entry = (struct q_entry *)malloc(sizeof(struct q_entry));
+        if(entry != NULL) {
+          INIT_LIST_HEAD(&entry->l_queue);
+          list_add_tail(&entry->l_queue, head);
+
+          entry->data = (void *)queue;
+
+          count++;
+        }
+      }
+    }
+  }
+
+  return count;
 }
 
 int cleanup_queuebox() {

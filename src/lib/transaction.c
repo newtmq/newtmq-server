@@ -18,7 +18,7 @@ static transaction_t *get_transaction(char *tid) {
   {
     transaction_t *t;
     list_for_each_entry(t, &manager.list, l_manager) {
-      if(strcmp(t->tid, tid) == 0) {
+      if(strncmp(t->tid, tid, strlen(tid)) == 0) {
         ret = t;
       }
     }

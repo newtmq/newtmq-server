@@ -24,12 +24,12 @@ static void test_error(void) {
   }
   send(sock, "\0", 1, 0);
 
-  sleep(0.5);
+  sleep(1);
 
   /* check not to receive ERROR frame */
   len = recv(sock, buf, sizeof(buf), MSG_DONTWAIT);
   CU_ASSERT(len > 0);
-  CU_ASSERT(strncmp(buf, "ERROR\n", 6) == 0);
+  CU_ASSERT(strncmp(buf, "ERROR", 5) == 0);
 
   close(sock);
 }

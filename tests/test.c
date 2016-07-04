@@ -7,10 +7,19 @@
 
 #define ADD_TESTS(statement) ret = statement(suite); if(ret != CUE_SUCCESS) return ret;
 
+static void test_init() {
+  init_config();
+}
+
 int main(int argc, char **argv) {
   CU_pSuite suite;
   int ret, failed_num;
   pid_t pid;
+
+  signal(SIGPIPE, SIG_IGN);
+
+  // preprocessing of tests
+  test_init();
 
   pid = start_newtd();
   if(pid > 0) {
@@ -26,8 +35,11 @@ int main(int argc, char **argv) {
     ADD_TESTS(test_proto_connect);
     ADD_TESTS(test_proto_disconnect);
     ADD_TESTS(test_proto_subscribe);
+    ADD_TESTS(test_proto_reply_to);
+    ADD_TESTS(test_proto_topic);
     ADD_TESTS(test_proto_begin);
     ADD_TESTS(test_proto_error);
+    ADD_TESTS(test_newtctl_worker);
 
     CU_basic_run_tests();
 

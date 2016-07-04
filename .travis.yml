@@ -6,7 +6,7 @@ notifications:
 
 before_install:
   - sudo apt-get update -qq
-  - sudo apt-get install -qq libconfuse-dev libcunit1-dev
+  - sudo apt-get install -qq libconfuse-dev libcunit1-dev libmsgpack-dev
 
 compiler: gcc
 
