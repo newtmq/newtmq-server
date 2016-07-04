@@ -97,10 +97,12 @@ am__v_AR_1 =
 lib_newt_a_AR = $(AR) $(ARFLAGS)
 lib_newt_a_LIBADD =
 am_lib_newt_a_OBJECTS = lib_newt_a-optparse.$(OBJEXT) \
-	lib_newt_a-config.$(OBJEXT) lib_newt_a-signal.$(OBJEXT) \
-	lib_newt_a-queue.$(OBJEXT) lib_newt_a-daemon.$(OBJEXT) \
-	lib_newt_a-logger.$(OBJEXT) lib_newt_a-connection.$(OBJEXT) \
-	lib_newt_a-transaction.$(OBJEXT) \
+	lib_newt_a-common.$(OBJEXT) lib_newt_a-config.$(OBJEXT) \
+	lib_newt_a-signal.$(OBJEXT) lib_newt_a-queue.$(OBJEXT) \
+	lib_newt_a-daemon.$(OBJEXT) lib_newt_a-logger.$(OBJEXT) \
+	lib_newt_a-connection.$(OBJEXT) \
+	lib_newt_a-transaction.$(OBJEXT) lib_newt_a-newtctl.$(OBJEXT) \
+	lib_newt_a-newtctl_commands.$(OBJEXT) \
 	lib_newt_a-stomp_proto_connect.$(OBJEXT) \
 	lib_newt_a-stomp_proto_disconnect.$(OBJEXT) \
 	lib_newt_a-stomp_proto_send.$(OBJEXT) \
@@ -112,6 +114,7 @@ am_lib_newt_a_OBJECTS = lib_newt_a-optparse.$(OBJEXT) \
 	lib_newt_a-stomp_proto_abort.$(OBJEXT) \
 	lib_newt_a-stomp_proto_commit.$(OBJEXT) \
 	lib_newt_a-stomp_worker_management.$(OBJEXT) \
+	lib_newt_a-stomp_worker_sending.$(OBJEXT) \
 	lib_newt_a-stomp.$(OBJEXT)
 lib_newt_a_OBJECTS = $(am_lib_newt_a_OBJECTS)
 AM_V_P = $(am__v_P_@AM_V@)
@@ -261,6 +264,7 @@ top_srcdir = @top_srcdir@
 noinst_LIBRARIES = lib_newt.a
 lib_newt_a_CFLAGS = -I../include $(CFLAGS)
 lib_newt_a_SOURCES = optparse.c \
+                     common.c \
                      config.c \
                      signal.c \
                      queue.c \
@@ -268,6 +272,8 @@ lib_newt_a_SOURCES = optparse.c \
                      logger.c \
                      connection.c \
                      transaction.c \
+                     newtctl.c \
+                     newtctl_commands.c \
                      stomp_proto_connect.c \
                      stomp_proto_disconnect.c \
                      stomp_proto_send.c \
@@ -279,6 +285,7 @@ lib_newt_a_SOURCES = optparse.c \
                      stomp_proto_abort.c \
                      stomp_proto_commit.c \
                      stomp_worker_management.c \
+                     stomp_worker_sending.c \
                      stomp.c
 
 all: all-am
@@ -330,10 +337,13 @@ mostlyclean-compile:
 distclean-compile:
 	-rm -f *.tab.c
 
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/lib_newt_a-common.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/lib_newt_a-config.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/lib_newt_a-connection.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/lib_newt_a-daemon.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/lib_newt_a-logger.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/lib_newt_a-newtctl.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/lib_newt_a-newtctl_commands.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/lib_newt_a-optparse.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/lib_newt_a-queue.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/lib_newt_a-signal.Po@am__quote@
@@ -349,6 +359,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/lib_newt_a-stomp_proto_subscribe.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/lib_newt_a-stomp_proto_unsubscribe.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/lib_newt_a-stomp_worker_management.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/lib_newt_a-stomp_worker_sending.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/lib_newt_a-transaction.Po@am__quote@
 
 .c.o:
@@ -380,6 +391,20 @@ lib_newt_a-optparse.obj: optparse.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='optparse.c' object='lib_newt_a-optparse.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(lib_newt_a_CFLAGS) $(CFLAGS) -c -o lib_newt_a-optparse.obj `if test -f 'optparse.c'; then $(CYGPATH_W) 'optparse.c'; else $(CYGPATH_W) '$(srcdir)/optparse.c'; fi`
+
+lib_newt_a-common.o: common.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(lib_newt_a_CFLAGS) $(CFLAGS) -MT lib_newt_a-common.o -MD -MP -MF $(DEPDIR)/lib_newt_a-common.Tpo -c -o lib_newt_a-common.o `test -f 'common.c' || echo '$(srcdir)/'`common.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/lib_newt_a-common.Tpo $(DEPDIR)/lib_newt_a-common.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='common.c' object='lib_newt_a-common.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(lib_newt_a_CFLAGS) $(CFLAGS) -c -o lib_newt_a-common.o `test -f 'common.c' || echo '$(srcdir)/'`common.c
+
+lib_newt_a-common.obj: common.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(lib_newt_a_CFLAGS) $(CFLAGS) -MT lib_newt_a-common.obj -MD -MP -MF $(DEPDIR)/lib_newt_a-common.Tpo -c -o lib_newt_a-common.obj `if test -f 'common.c'; then $(CYGPATH_W) 'common.c'; else $(CYGPATH_W) '$(srcdir)/common.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/lib_newt_a-common.Tpo $(DEPDIR)/lib_newt_a-common.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='common.c' object='lib_newt_a-common.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(lib_newt_a_CFLAGS) $(CFLAGS) -c -o lib_newt_a-common.obj `if test -f 'common.c'; then $(CYGPATH_W) 'common.c'; else $(CYGPATH_W) '$(srcdir)/common.c'; fi`
 
 lib_newt_a-config.o: config.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(lib_newt_a_CFLAGS) $(CFLAGS) -MT lib_newt_a-config.o -MD -MP -MF $(DEPDIR)/lib_newt_a-config.Tpo -c -o lib_newt_a-config.o `test -f 'config.c' || echo '$(srcdir)/'`config.c
@@ -478,6 +503,34 @@ lib_newt_a-transaction.obj: transaction.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='transaction.c' object='lib_newt_a-transaction.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(lib_newt_a_CFLAGS) $(CFLAGS) -c -o lib_newt_a-transaction.obj `if test -f 'transaction.c'; then $(CYGPATH_W) 'transaction.c'; else $(CYGPATH_W) '$(srcdir)/transaction.c'; fi`
+
+lib_newt_a-newtctl.o: newtctl.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(lib_newt_a_CFLAGS) $(CFLAGS) -MT lib_newt_a-newtctl.o -MD -MP -MF $(DEPDIR)/lib_newt_a-newtctl.Tpo -c -o lib_newt_a-newtctl.o `test -f 'newtctl.c' || echo '$(srcdir)/'`newtctl.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/lib_newt_a-newtctl.Tpo $(DEPDIR)/lib_newt_a-newtctl.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='newtctl.c' object='lib_newt_a-newtctl.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(lib_newt_a_CFLAGS) $(CFLAGS) -c -o lib_newt_a-newtctl.o `test -f 'newtctl.c' || echo '$(srcdir)/'`newtctl.c
+
+lib_newt_a-newtctl.obj: newtctl.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(lib_newt_a_CFLAGS) $(CFLAGS) -MT lib_newt_a-newtctl.obj -MD -MP -MF $(DEPDIR)/lib_newt_a-newtctl.Tpo -c -o lib_newt_a-newtctl.obj `if test -f 'newtctl.c'; then $(CYGPATH_W) 'newtctl.c'; else $(CYGPATH_W) '$(srcdir)/newtctl.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/lib_newt_a-newtctl.Tpo $(DEPDIR)/lib_newt_a-newtctl.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='newtctl.c' object='lib_newt_a-newtctl.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(lib_newt_a_CFLAGS) $(CFLAGS) -c -o lib_newt_a-newtctl.obj `if test -f 'newtctl.c'; then $(CYGPATH_W) 'newtctl.c'; else $(CYGPATH_W) '$(srcdir)/newtctl.c'; fi`
+
+lib_newt_a-newtctl_commands.o: newtctl_commands.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(lib_newt_a_CFLAGS) $(CFLAGS) -MT lib_newt_a-newtctl_commands.o -MD -MP -MF $(DEPDIR)/lib_newt_a-newtctl_commands.Tpo -c -o lib_newt_a-newtctl_commands.o `test -f 'newtctl_commands.c' || echo '$(srcdir)/'`newtctl_commands.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/lib_newt_a-newtctl_commands.Tpo $(DEPDIR)/lib_newt_a-newtctl_commands.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='newtctl_commands.c' object='lib_newt_a-newtctl_commands.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(lib_newt_a_CFLAGS) $(CFLAGS) -c -o lib_newt_a-newtctl_commands.o `test -f 'newtctl_commands.c' || echo '$(srcdir)/'`newtctl_commands.c
+
+lib_newt_a-newtctl_commands.obj: newtctl_commands.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(lib_newt_a_CFLAGS) $(CFLAGS) -MT lib_newt_a-newtctl_commands.obj -MD -MP -MF $(DEPDIR)/lib_newt_a-newtctl_commands.Tpo -c -o lib_newt_a-newtctl_commands.obj `if test -f 'newtctl_commands.c'; then $(CYGPATH_W) 'newtctl_commands.c'; else $(CYGPATH_W) '$(srcdir)/newtctl_commands.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/lib_newt_a-newtctl_commands.Tpo $(DEPDIR)/lib_newt_a-newtctl_commands.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='newtctl_commands.c' object='lib_newt_a-newtctl_commands.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(lib_newt_a_CFLAGS) $(CFLAGS) -c -o lib_newt_a-newtctl_commands.obj `if test -f 'newtctl_commands.c'; then $(CYGPATH_W) 'newtctl_commands.c'; else $(CYGPATH_W) '$(srcdir)/newtctl_commands.c'; fi`
 
 lib_newt_a-stomp_proto_connect.o: stomp_proto_connect.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(lib_newt_a_CFLAGS) $(CFLAGS) -MT lib_newt_a-stomp_proto_connect.o -MD -MP -MF $(DEPDIR)/lib_newt_a-stomp_proto_connect.Tpo -c -o lib_newt_a-stomp_proto_connect.o `test -f 'stomp_proto_connect.c' || echo '$(srcdir)/'`stomp_proto_connect.c
@@ -632,6 +685,20 @@ lib_newt_a-stomp_worker_management.obj: stomp_worker_management.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='stomp_worker_management.c' object='lib_newt_a-stomp_worker_management.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(lib_newt_a_CFLAGS) $(CFLAGS) -c -o lib_newt_a-stomp_worker_management.obj `if test -f 'stomp_worker_management.c'; then $(CYGPATH_W) 'stomp_worker_management.c'; else $(CYGPATH_W) '$(srcdir)/stomp_worker_management.c'; fi`
+
+lib_newt_a-stomp_worker_sending.o: stomp_worker_sending.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(lib_newt_a_CFLAGS) $(CFLAGS) -MT lib_newt_a-stomp_worker_sending.o -MD -MP -MF $(DEPDIR)/lib_newt_a-stomp_worker_sending.Tpo -c -o lib_newt_a-stomp_worker_sending.o `test -f 'stomp_worker_sending.c' || echo '$(srcdir)/'`stomp_worker_sending.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/lib_newt_a-stomp_worker_sending.Tpo $(DEPDIR)/lib_newt_a-stomp_worker_sending.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='stomp_worker_sending.c' object='lib_newt_a-stomp_worker_sending.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(lib_newt_a_CFLAGS) $(CFLAGS) -c -o lib_newt_a-stomp_worker_sending.o `test -f 'stomp_worker_sending.c' || echo '$(srcdir)/'`stomp_worker_sending.c
+
+lib_newt_a-stomp_worker_sending.obj: stomp_worker_sending.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(lib_newt_a_CFLAGS) $(CFLAGS) -MT lib_newt_a-stomp_worker_sending.obj -MD -MP -MF $(DEPDIR)/lib_newt_a-stomp_worker_sending.Tpo -c -o lib_newt_a-stomp_worker_sending.obj `if test -f 'stomp_worker_sending.c'; then $(CYGPATH_W) 'stomp_worker_sending.c'; else $(CYGPATH_W) '$(srcdir)/stomp_worker_sending.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/lib_newt_a-stomp_worker_sending.Tpo $(DEPDIR)/lib_newt_a-stomp_worker_sending.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='stomp_worker_sending.c' object='lib_newt_a-stomp_worker_sending.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(lib_newt_a_CFLAGS) $(CFLAGS) -c -o lib_newt_a-stomp_worker_sending.obj `if test -f 'stomp_worker_sending.c'; then $(CYGPATH_W) 'stomp_worker_sending.c'; else $(CYGPATH_W) '$(srcdir)/stomp_worker_sending.c'; fi`
 
 lib_newt_a-stomp.o: stomp.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(lib_newt_a_CFLAGS) $(CFLAGS) -MT lib_newt_a-stomp.o -MD -MP -MF $(DEPDIR)/lib_newt_a-stomp.Tpo -c -o lib_newt_a-stomp.o `test -f 'stomp.c' || echo '$(srcdir)/'`stomp.c

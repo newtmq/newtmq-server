@@ -91,6 +91,7 @@ am__dirstamp = $(am__leading_dot)dirstamp
 am_newt_test_OBJECTS = newt_test-test.$(OBJEXT) \
 	newt_test-connection.$(OBJEXT) newt_test-client.$(OBJEXT) \
 	newt_test-daemon.$(OBJEXT) newt_test-config.$(OBJEXT) \
+	newtctl/newt_test-test_worker.$(OBJEXT) \
 	unit/newt_test-test_optparse.$(OBJEXT) \
 	unit/newt_test-test_config.$(OBJEXT) \
 	unit/newt_test-test_stomp.$(OBJEXT) \
@@ -102,6 +103,8 @@ am_newt_test_OBJECTS = newt_test-test.$(OBJEXT) \
 	proto/newt_test-test_disconnect.$(OBJEXT) \
 	proto/newt_test-test_begin.$(OBJEXT) \
 	proto/newt_test-test_subscribe.$(OBJEXT) \
+	proto/newt_test-test_reply_to.$(OBJEXT) \
+	proto/newt_test-test_topic.$(OBJEXT) \
 	proto/newt_test-test_error.$(OBJEXT)
 newt_test_OBJECTS = $(am_newt_test_OBJECTS)
 newt_test_DEPENDENCIES =
@@ -256,6 +259,7 @@ newt_test_SOURCES = test.c \
                     client.c \
                     daemon.c \
                     config.c \
+                    newtctl/test_worker.c \
                     unit/test_optparse.c \
                     unit/test_config.c \
                     unit/test_stomp.c \
@@ -267,10 +271,12 @@ newt_test_SOURCES = test.c \
                     proto/test_disconnect.c \
                     proto/test_begin.c \
                     proto/test_subscribe.c \
+                    proto/test_reply_to.c \
+                    proto/test_topic.c \
                     proto/test_error.c
 
 newt_test_LDADD = -lcunit -l_newt -lconfuse -lpthread
-newt_test_CFLAGS = -I../src/include/
+newt_test_CFLAGS = -I../src/include/ -I../src/lib
 newt_test_LDFLAGS = -L../src/lib/
 all: all-am
 
@@ -309,6 +315,14 @@ $(am__aclocal_m4_deps):
 
 clean-checkPROGRAMS:
 	-test -z "$(check_PROGRAMS)" || rm -f $(check_PROGRAMS)
+newtctl/$(am__dirstamp):
+	@$(MKDIR_P) newtctl
+	@: > newtctl/$(am__dirstamp)
+newtctl/$(DEPDIR)/$(am__dirstamp):
+	@$(MKDIR_P) newtctl/$(DEPDIR)
+	@: > newtctl/$(DEPDIR)/$(am__dirstamp)
+newtctl/newt_test-test_worker.$(OBJEXT): newtctl/$(am__dirstamp) \
+	newtctl/$(DEPDIR)/$(am__dirstamp)
 unit/$(am__dirstamp):
 	@$(MKDIR_P) unit
 	@: > unit/$(am__dirstamp)
@@ -343,6 +357,10 @@ proto/newt_test-test_begin.$(OBJEXT): proto/$(am__dirstamp) \
 	proto/$(DEPDIR)/$(am__dirstamp)
 proto/newt_test-test_subscribe.$(OBJEXT): proto/$(am__dirstamp) \
 	proto/$(DEPDIR)/$(am__dirstamp)
+proto/newt_test-test_reply_to.$(OBJEXT): proto/$(am__dirstamp) \
+	proto/$(DEPDIR)/$(am__dirstamp)
+proto/newt_test-test_topic.$(OBJEXT): proto/$(am__dirstamp) \
+	proto/$(DEPDIR)/$(am__dirstamp)
 proto/newt_test-test_error.$(OBJEXT): proto/$(am__dirstamp) \
 	proto/$(DEPDIR)/$(am__dirstamp)
 
@@ -352,6 +370,7 @@ newt_test$(EXEEXT): $(newt_test_OBJECTS) $(newt_test_DEPENDENCIES) $(EXTRA_newt_
 
 mostlyclean-compile:
 	-rm -f *.$(OBJEXT)
+	-rm -f newtctl/*.$(OBJEXT)
 	-rm -f proto/*.$(OBJEXT)
 	-rm -f unit/*.$(OBJEXT)
 
@@ -363,11 +382,14 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/newt_test-connection.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/newt_test-daemon.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/newt_test-test.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@newtctl/$(DEPDIR)/newt_test-test_worker.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@proto/$(DEPDIR)/newt_test-test_begin.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@proto/$(DEPDIR)/newt_test-test_connect.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@proto/$(DEPDIR)/newt_test-test_disconnect.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@proto/$(DEPDIR)/newt_test-test_error.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@proto/$(DEPDIR)/newt_test-test_reply_to.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@proto/$(DEPDIR)/newt_test-test_subscribe.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@proto/$(DEPDIR)/newt_test-test_topic.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@unit/$(DEPDIR)/newt_test-test_config.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@unit/$(DEPDIR)/newt_test-test_daemon.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@unit/$(DEPDIR)/newt_test-test_optparse.Po@am__quote@
@@ -461,6 +483,20 @@ newt_test-config.obj: config.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='config.c' object='newt_test-config.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(newt_test_CFLAGS) $(CFLAGS) -c -o newt_test-config.obj `if test -f 'config.c'; then $(CYGPATH_W) 'config.c'; else $(CYGPATH_W) '$(srcdir)/config.c'; fi`
+
+newtctl/newt_test-test_worker.o: newtctl/test_worker.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(newt_test_CFLAGS) $(CFLAGS) -MT newtctl/newt_test-test_worker.o -MD -MP -MF newtctl/$(DEPDIR)/newt_test-test_worker.Tpo -c -o newtctl/newt_test-test_worker.o `test -f 'newtctl/test_worker.c' || echo '$(srcdir)/'`newtctl/test_worker.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) newtctl/$(DEPDIR)/newt_test-test_worker.Tpo newtctl/$(DEPDIR)/newt_test-test_worker.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='newtctl/test_worker.c' object='newtctl/newt_test-test_worker.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(newt_test_CFLAGS) $(CFLAGS) -c -o newtctl/newt_test-test_worker.o `test -f 'newtctl/test_worker.c' || echo '$(srcdir)/'`newtctl/test_worker.c
+
+newtctl/newt_test-test_worker.obj: newtctl/test_worker.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(newt_test_CFLAGS) $(CFLAGS) -MT newtctl/newt_test-test_worker.obj -MD -MP -MF newtctl/$(DEPDIR)/newt_test-test_worker.Tpo -c -o newtctl/newt_test-test_worker.obj `if test -f 'newtctl/test_worker.c'; then $(CYGPATH_W) 'newtctl/test_worker.c'; else $(CYGPATH_W) '$(srcdir)/newtctl/test_worker.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) newtctl/$(DEPDIR)/newt_test-test_worker.Tpo newtctl/$(DEPDIR)/newt_test-test_worker.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='newtctl/test_worker.c' object='newtctl/newt_test-test_worker.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(newt_test_CFLAGS) $(CFLAGS) -c -o newtctl/newt_test-test_worker.obj `if test -f 'newtctl/test_worker.c'; then $(CYGPATH_W) 'newtctl/test_worker.c'; else $(CYGPATH_W) '$(srcdir)/newtctl/test_worker.c'; fi`
 
 unit/newt_test-test_optparse.o: unit/test_optparse.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(newt_test_CFLAGS) $(CFLAGS) -MT unit/newt_test-test_optparse.o -MD -MP -MF unit/$(DEPDIR)/newt_test-test_optparse.Tpo -c -o unit/newt_test-test_optparse.o `test -f 'unit/test_optparse.c' || echo '$(srcdir)/'`unit/test_optparse.c
@@ -616,6 +652,34 @@ proto/newt_test-test_subscribe.obj: proto/test_subscribe.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(newt_test_CFLAGS) $(CFLAGS) -c -o proto/newt_test-test_subscribe.obj `if test -f 'proto/test_subscribe.c'; then $(CYGPATH_W) 'proto/test_subscribe.c'; else $(CYGPATH_W) '$(srcdir)/proto/test_subscribe.c'; fi`
 
+proto/newt_test-test_reply_to.o: proto/test_reply_to.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(newt_test_CFLAGS) $(CFLAGS) -MT proto/newt_test-test_reply_to.o -MD -MP -MF proto/$(DEPDIR)/newt_test-test_reply_to.Tpo -c -o proto/newt_test-test_reply_to.o `test -f 'proto/test_reply_to.c' || echo '$(srcdir)/'`proto/test_reply_to.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) proto/$(DEPDIR)/newt_test-test_reply_to.Tpo proto/$(DEPDIR)/newt_test-test_reply_to.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='proto/test_reply_to.c' object='proto/newt_test-test_reply_to.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(newt_test_CFLAGS) $(CFLAGS) -c -o proto/newt_test-test_reply_to.o `test -f 'proto/test_reply_to.c' || echo '$(srcdir)/'`proto/test_reply_to.c
+
+proto/newt_test-test_reply_to.obj: proto/test_reply_to.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(newt_test_CFLAGS) $(CFLAGS) -MT proto/newt_test-test_reply_to.obj -MD -MP -MF proto/$(DEPDIR)/newt_test-test_reply_to.Tpo -c -o proto/newt_test-test_reply_to.obj `if test -f 'proto/test_reply_to.c'; then $(CYGPATH_W) 'proto/test_reply_to.c'; else $(CYGPATH_W) '$(srcdir)/proto/test_reply_to.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) proto/$(DEPDIR)/newt_test-test_reply_to.Tpo proto/$(DEPDIR)/newt_test-test_reply_to.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='proto/test_reply_to.c' object='proto/newt_test-test_reply_to.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(newt_test_CFLAGS) $(CFLAGS) -c -o proto/newt_test-test_reply_to.obj `if test -f 'proto/test_reply_to.c'; then $(CYGPATH_W) 'proto/test_reply_to.c'; else $(CYGPATH_W) '$(srcdir)/proto/test_reply_to.c'; fi`
+
+proto/newt_test-test_topic.o: proto/test_topic.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(newt_test_CFLAGS) $(CFLAGS) -MT proto/newt_test-test_topic.o -MD -MP -MF proto/$(DEPDIR)/newt_test-test_topic.Tpo -c -o proto/newt_test-test_topic.o `test -f 'proto/test_topic.c' || echo '$(srcdir)/'`proto/test_topic.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) proto/$(DEPDIR)/newt_test-test_topic.Tpo proto/$(DEPDIR)/newt_test-test_topic.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='proto/test_topic.c' object='proto/newt_test-test_topic.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(newt_test_CFLAGS) $(CFLAGS) -c -o proto/newt_test-test_topic.o `test -f 'proto/test_topic.c' || echo '$(srcdir)/'`proto/test_topic.c
+
+proto/newt_test-test_topic.obj: proto/test_topic.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(newt_test_CFLAGS) $(CFLAGS) -MT proto/newt_test-test_topic.obj -MD -MP -MF proto/$(DEPDIR)/newt_test-test_topic.Tpo -c -o proto/newt_test-test_topic.obj `if test -f 'proto/test_topic.c'; then $(CYGPATH_W) 'proto/test_topic.c'; else $(CYGPATH_W) '$(srcdir)/proto/test_topic.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) proto/$(DEPDIR)/newt_test-test_topic.Tpo proto/$(DEPDIR)/newt_test-test_topic.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='proto/test_topic.c' object='proto/newt_test-test_topic.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(newt_test_CFLAGS) $(CFLAGS) -c -o proto/newt_test-test_topic.obj `if test -f 'proto/test_topic.c'; then $(CYGPATH_W) 'proto/test_topic.c'; else $(CYGPATH_W) '$(srcdir)/proto/test_topic.c'; fi`
+
 proto/newt_test-test_error.o: proto/test_error.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(newt_test_CFLAGS) $(CFLAGS) -MT proto/newt_test-test_error.o -MD -MP -MF proto/$(DEPDIR)/newt_test-test_error.Tpo -c -o proto/newt_test-test_error.o `test -f 'proto/test_error.c' || echo '$(srcdir)/'`proto/test_error.c
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) proto/$(DEPDIR)/newt_test-test_error.Tpo proto/$(DEPDIR)/newt_test-test_error.Po
@@ -743,6 +807,8 @@ clean-generic:
 distclean-generic:
 	-test -z "$(CONFIG_CLEAN_FILES)" || rm -f $(CONFIG_CLEAN_FILES)
 	-test . = "$(srcdir)" || test -z "$(CONFIG_CLEAN_VPATH_FILES)" || rm -f $(CONFIG_CLEAN_VPATH_FILES)
+	-rm -f newtctl/$(DEPDIR)/$(am__dirstamp)
+	-rm -f newtctl/$(am__dirstamp)
 	-rm -f proto/$(DEPDIR)/$(am__dirstamp)
 	-rm -f proto/$(am__dirstamp)
 	-rm -f unit/$(DEPDIR)/$(am__dirstamp)
@@ -756,7 +822,7 @@ clean: clean-am
 clean-am: clean-checkPROGRAMS clean-generic mostlyclean-am
 
 distclean: distclean-am
-	-rm -rf ./$(DEPDIR) proto/$(DEPDIR) unit/$(DEPDIR)
+	-rm -rf ./$(DEPDIR) newtctl/$(DEPDIR) proto/$(DEPDIR) unit/$(DEPDIR)
 	-rm -f Makefile
 distclean-am: clean-am distclean-compile distclean-generic \
 	distclean-tags
@@ -802,7 +868,7 @@ install-ps-am:
 installcheck-am:
 
 maintainer-clean: maintainer-clean-am
-	-rm -rf ./$(DEPDIR) proto/$(DEPDIR) unit/$(DEPDIR)
+	-rm -rf ./$(DEPDIR) newtctl/$(DEPDIR) proto/$(DEPDIR) unit/$(DEPDIR)
 	-rm -f Makefile
 maintainer-clean-am: distclean-am maintainer-clean-generic
 
