@@ -21,6 +21,6 @@ lib_newt_a_SOURCES = optparse.c \
                      stomp_proto_begin.c \
                      stomp_proto_abort.c \
                      stomp_proto_commit.c \
-                     stomp_worker_management.c \
-                     stomp_worker_sending.c \
+                     stomp_management_worker.c \
+                     stomp_sending_worker.c \
                      stomp.c

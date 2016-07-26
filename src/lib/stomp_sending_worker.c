@@ -9,7 +9,7 @@
 #include <newt/queue.h>
 #include <newt/logger.h>
 #include <newt/common.h>
-#include <newt/stomp_worker_sending.h>
+#include <newt/stomp_sending_worker.h>
 
 // this value is used at status parmaeter of worker_info object
 enum worker_status {
