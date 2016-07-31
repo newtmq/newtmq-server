@@ -1,12 +1,14 @@
 #include <newt/list.h>
 #include <newt/stomp.h>
+#include <newt/queue.h>
 #include <newt/common.h>
 #include <newt/logger.h>
-#include <newt/queue.h>
 
+#include <newt/stomp_sending_worker.h>
 #include <newt/stomp_management_worker.h>
 
 #include <assert.h>
+#include <string.h>
 
 struct attrinfo_t {
   char *destination;
@@ -54,7 +56,11 @@ frame_t *handler_stomp_subscribe(frame_t *frame) {
     return NULL;
   }
 
-  stomp_sending_register(frame->sock, attrinfo.destination, attrinfo.id);
+  if(strlen(attrinfo.destination) >= 7 && strncmp(attrinfo.destination, "/topic/", 7) == 0) {
+    register_multicast_worker(frame->sock, attrinfo.destination, attrinfo.id);
+  } else {
+    register_unicast_worker(frame->sock, attrinfo.destination, attrinfo.id);
+  }
 
   return NULL;
 }

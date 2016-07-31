@@ -2,6 +2,7 @@
 #include <newt/stomp.h>
 #include <newt/common.h>
 #include <newt/logger.h>
+#include <newt/stomp_sending_worker.h>
 
 #include <assert.h>
 
@@ -81,7 +82,7 @@ frame_t *handler_stomp_send(frame_t *frame) {
   }
 
   if(attrinfo.reply_to != NULL) {
-    stomp_sending_register(frame->sock, attrinfo.reply_to, NULL);
+    register_reply_worker(frame->sock, attrinfo.reply_to);
   }
 
   if(attrinfo.qname == NULL) {

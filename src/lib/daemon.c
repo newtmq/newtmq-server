@@ -2,6 +2,7 @@
 #include <newt/common.h>
 #include <newt/connection.h>
 #include <newt/stomp.h>
+#include <newt/stomp_sending_worker.h>
 #include <newt/stomp_management_worker.h>
 
 #include <pthread.h>
@@ -30,7 +31,7 @@ int daemon_initialize() {
     return RET_ERROR;
   }
 
-  if(initialize_worker_sending() == RET_ERROR) {
+  if(initialize_sending_worker() == RET_ERROR) {
     return RET_ERROR;
   }
 
