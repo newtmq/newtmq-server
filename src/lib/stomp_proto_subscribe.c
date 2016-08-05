@@ -3,6 +3,7 @@
 #include <newt/queue.h>
 #include <newt/common.h>
 #include <newt/logger.h>
+#include <newt/frame.h>
 
 #include <newt/stomp_sending_worker.h>
 #include <newt/stomp_management_worker.h>

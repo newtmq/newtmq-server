@@ -10,6 +10,7 @@
 #include <newt/logger.h>
 #include <newt/common.h>
 #include <newt/stomp_sending_worker.h>
+#include <newt/frame.h>
 
 struct worker_manager_t {
   pthread_mutex_t mutex;

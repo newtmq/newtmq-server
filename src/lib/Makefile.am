@@ -11,6 +11,7 @@ lib_newt_a_SOURCES = optparse.c \
                      transaction.c \
                      newtctl.c \
                      newtctl_commands.c \
+                     frame.c \
                      stomp_proto_connect.c \
                      stomp_proto_disconnect.c \
                      stomp_proto_send.c \

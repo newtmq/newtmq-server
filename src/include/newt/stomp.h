@@ -3,24 +3,15 @@
 
 #include <newt/list.h>
 #include <newt/connection.h>
+#include <newt/frame.h>
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <pthread.h>
 
-#define FNAME_LEN 12
-#define FRAME_ID_LEN 32
 #define CONN_ID_LEN 10
 #define LD_MAX (1024)
-
-/* These values specify status of making frame */
-#define STATUS_BORN         (1 << 0)
-#define STATUS_INPUT_NAME   (1 << 1)
-#define STATUS_INPUT_HEADER (1 << 2)
-#define STATUS_INPUT_BODY   (1 << 3)
-#define STATUS_IN_BUCKET    (1 << 4)
-#define STATUS_IN_QUEUE     (1 << 5)
 
 /* These values specify state of connection */
 #define STATE_INIT (1 << 0)
@@ -29,36 +20,10 @@
 #define IS_BL(buf) (buf != NULL && buf[0] == '\0')
 #define IS_NL(buf) (buf != NULL && (buf[0] == '\n' || buf[0] == '\r'))
 
-typedef struct stomp_conninfo_t stomp_conninfo_t;
-
 typedef struct frame_bucket_t {
   pthread_mutex_t mutex;
   struct list_head h_frame;
 } frame_bucket_t;
-
-/* This describes STOMP Frame*/
-typedef struct frame_t frame_t;
-struct frame_t {
-  char name[FNAME_LEN];
-  char id[FRAME_ID_LEN];
-  int sock;
-  unsigned int status;
-  int contentlen; // content length which is specified in header
-  int has_contentlen; // content length which is actually read
-  pthread_mutex_t mutex_header;
-  pthread_mutex_t mutex_body;
-  struct list_head h_attrs;
-  struct list_head h_data;
-  struct list_head l_bucket;
-  struct list_head l_transaction;
-
-  /* To know the connection state */
-  stomp_conninfo_t *cinfo;
-
-  /* This parameters are used for transaction processing */
-  int (*transaction_callback)(frame_t *);
-  void *transaction_data;
-};
 
 /* This describes a Frame attribute */
 typedef struct linedata_t {
@@ -68,6 +33,7 @@ typedef struct linedata_t {
 } linedata_t;
 
 /* This is alive during connection is active */
+typedef struct stomp_conninfo_t stomp_conninfo_t;
 struct stomp_conninfo_t {
   char id[CONN_ID_LEN];
   int status;
@@ -83,9 +49,6 @@ typedef struct stomp_header_handler {
 
 int stomp_init();
 void *stomp_conn_worker(struct conninfo *);
-
-frame_t *alloc_frame();
-void free_frame(frame_t *);
 
 frame_t *get_frame_from_bucket();
 

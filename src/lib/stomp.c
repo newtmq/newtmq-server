@@ -5,6 +5,7 @@
 #include <newt/queue.h>
 #include <newt/connection.h>
 #include <newt/stomp_management_worker.h>
+#include <newt/frame.h>
 
 #include <assert.h>
 #include <sys/ioctl.h>
@@ -31,72 +32,6 @@ static struct stomp_frame_info finfo_arr[] = {
 };
 
 frame_bucket_t stomp_frame_bucket;
-
-frame_t *alloc_frame() {
-  frame_t *ret;
-
-  ret = (frame_t *)malloc(sizeof(frame_t));
-  if(ret == NULL) {
-    return NULL;
-  }
-
-  /* Initialize frame_t object */
-  memset(ret->name, 0, FNAME_LEN);
-  memset(ret->id, 0, FRAME_ID_LEN);
-
-  INIT_LIST_HEAD(&ret->h_attrs);
-  INIT_LIST_HEAD(&ret->h_data);
-  INIT_LIST_HEAD(&ret->l_bucket);
-  INIT_LIST_HEAD(&ret->l_transaction);
-
-  pthread_mutex_init(&ret->mutex_header, NULL);
-  pthread_mutex_init(&ret->mutex_body, NULL);
-
-  ret->sock = 0;
-  ret->cinfo = NULL;
-  ret->status = STATUS_BORN;
-  ret->contentlen = -1;
-  ret->has_contentlen = 0;
-
-  ret->transaction_callback = NULL;
-  ret->transaction_data = NULL;
-
-  return ret;
-}
-
-void free_frame(frame_t *frame) {
-  linedata_t *data, *l;
-
-  /* delete header */
-  if(! list_empty(&frame->h_attrs)) {
-    list_for_each_entry_safe(data, l, &frame->h_attrs, list) {
-      list_del(&data->list);
-      free(data);
-    }
-  }
-
-  /* delete body */
-  if(! list_empty(&frame->h_data)) {
-    list_for_each_entry_safe(data, l, &frame->h_data, list) {
-      list_del(&data->list);
-      free(data);
-    }
-  }
-
-  pthread_mutex_lock(&stomp_frame_bucket.mutex);
-  {
-    if(frame->l_bucket.next != NULL && frame->l_bucket.prev != NULL) {
-      list_del(&frame->l_bucket);
-    }
-  }
-  pthread_mutex_unlock(&stomp_frame_bucket.mutex);
-
-  if(frame->transaction_data != NULL) {
-    free(frame->transaction_data);
-  }
-
-  free(frame);
-}
 
 static int ssplit(char *start, char *end, int *len, int is_body) {
   char *p;
@@ -397,7 +332,7 @@ static void prepare_frame(stomp_conninfo_t *cinfo, int sock) {
   assert(cinfo != NULL);
 
   if(cinfo->frame == NULL) {
-    frame_t *frame = alloc_frame(sock);
+    frame_t *frame = alloc_frame();
 
     assert(frame != NULL);
 

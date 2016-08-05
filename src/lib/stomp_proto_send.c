@@ -3,6 +3,7 @@
 #include <newt/common.h>
 #include <newt/logger.h>
 #include <newt/stomp_sending_worker.h>
+#include <newt/frame.h>
 
 #include <assert.h>
 

@@ -1,5 +1,6 @@
 #include <newt/common.h>
 #include <newt/stomp_management_worker.h>
+#include <newt/frame.h>
 
 #include <assert.h>
 

@@ -3,6 +3,7 @@
 
 #include <newt/list.h>
 #include <newt/stomp.h>
+#include <newt/frame.h>
 
 #include <pthread.h>
 

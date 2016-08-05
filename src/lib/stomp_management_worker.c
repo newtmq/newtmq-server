@@ -2,6 +2,7 @@
 #include <newt/logger.h>
 #include <newt/stomp.h>
 #include <newt/stomp_management_worker.h>
+#include <newt/frame.h>
 
 typedef struct stomp_handler_t {
   char *name;

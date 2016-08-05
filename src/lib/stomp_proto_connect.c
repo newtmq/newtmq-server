@@ -2,6 +2,7 @@
 #include <newt/stomp.h>
 #include <newt/common.h>
 #include <newt/logger.h>
+#include <newt/frame.h>
 
 #include <string.h>
 #include <assert.h>

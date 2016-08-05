@@ -2,6 +2,7 @@
 #define __STOMP_MANAGEMENT_H__
 
 #include <newt/stomp.h>
+#include <newt/frame.h>
 #include <pthread.h>
 
 #define DESTINATION_IS_SET (1 << 0)

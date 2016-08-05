@@ -1,5 +1,6 @@
 #include <newt/transaction.h>
 #include <newt/common.h>
+#include <newt/frame.h>
 
 #include <string.h>
 #include <stdlib.h>
