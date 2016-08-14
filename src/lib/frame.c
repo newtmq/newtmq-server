@@ -32,6 +32,7 @@ frame_t *alloc_frame() {
   ret->status = STATUS_BORN;
   ret->contentlen = -1;
   ret->has_contentlen = 0;
+  ret->size = 0;
 
   ret->transaction_callback = NULL;
   ret->transaction_data = NULL;

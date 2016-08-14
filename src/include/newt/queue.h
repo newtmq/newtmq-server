@@ -21,6 +21,12 @@ struct queue {
   struct list_head l_box;
   struct list_head h_entry;
   char name[QNAME_LENGTH];
+
+  // for persistency
+  long index_head; // the whole bytes of queue
+  long index_sent; // the bytes which is already sent to subscriber in queue
+
+  // for statistics
   int count;
 };
 

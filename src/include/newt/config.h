@@ -10,6 +10,7 @@ typedef struct newt_config {
   char *logfile;
   cfg_bool_t debug;
   char *loglevel;
+  char *datadir;
 } newt_config;
 
 int load_config(char *, newt_config *);

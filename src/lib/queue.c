@@ -12,17 +12,6 @@
 struct list_head *queuebox[QB_SIZE] = {0};
 static pthread_mutex_t queuebox_lock;
 
-static unsigned long hash(unsigned char *str) {
-  unsigned long hash = 5381;
-  int c;
-  
-  while (c = *str++) {
-    hash = ((hash << 5) + hash) + c; /* hash * 33 + c */
-  }
-  
-  return hash;
-}
-
 static struct q_entry *create_entry(void *data) {
   struct q_entry *e;
 
@@ -76,7 +65,7 @@ static void clear_queue(struct queue* q) {
 }
 
 static struct queue *get_queue(char *qname) {
-  unsigned long hashnum = hash(qname);
+  unsigned long hashnum = get_hash(qname);
   int index = (hashnum % QB_SIZE) & INT_MAX;
   struct queue *queue = NULL;
 

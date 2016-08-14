@@ -14,8 +14,16 @@
 
 #define FNAME_LEN 12
 #define FRAME_ID_LEN 32
+#define LD_MAX (1024)
 
 typedef struct stomp_conninfo_t stomp_conninfo_t;
+
+/* This describes a Frame attribute */
+typedef struct linedata_t {
+  char data[LD_MAX];
+  struct list_head list;
+  int len;
+} linedata_t;
 
 /* This describes STOMP Frame*/
 typedef struct frame_t frame_t;
@@ -33,6 +41,10 @@ struct frame_t {
   struct list_head l_bucket; // for storing frame to the bucket which has parsed frames
   struct list_head l_transaction;
   struct list_head l_persistent; // for storing waiting list that is handled by persistent worker
+
+  // This parameter is used for persistency to know where farme is already read.
+  // specify whole frame size (includes command, header, body)
+  int size;
 
   /* To know the connection state */
   stomp_conninfo_t *cinfo;

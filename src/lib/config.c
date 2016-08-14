@@ -9,6 +9,7 @@ static cfg_opt_t config_opts[] = {
   CFG_STR("loglevel",  NULL,             CFGF_NONE),
   CFG_STR("logfile",   "/tmp/newtd.log", CFGF_NONE),
   CFG_BOOL("debug",    cfg_false,        CFGF_NONE),
+  CFG_STR("datadir",   "/tmp/newtmq",    CFGF_NONE),
   CFG_END()
 };
 
@@ -33,6 +34,7 @@ int load_config(char *confpath, newt_config *config) {
   config->ctrl_port = cfg_getint(cfg, "ctrl_port");
   config->logfile   = cfg_getstr(cfg, "logfile");
   config->loglevel  = cfg_getstr(cfg, "loglevel");
+  config->datadir   = cfg_getstr(cfg, "datadir");
   config->debug     = cfg_getbool(cfg, "debug");
 
   return RET_SUCCESS;

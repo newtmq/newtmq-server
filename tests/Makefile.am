@@ -13,6 +13,7 @@ newt_test_SOURCES = test.c \
                     unit/test_daemon.c \
                     unit/test_queue.c \
                     unit/test_transaction.c \
+                    unit/test_persistent.c \
                     proto/test_connect.c \
                     proto/test_disconnect.c \
                     proto/test_begin.c \

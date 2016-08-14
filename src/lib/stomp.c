@@ -138,6 +138,10 @@ static int cleanup(void *data) {
   pthread_mutex_lock(&stomp_frame_bucket.mutex);
   { /* thread safe */
     list_for_each_entry_safe(frame, h, &stomp_frame_bucket.h_frame, l_bucket) {
+      if(frame->l_bucket.next != NULL && frame->l_bucket.prev != NULL) {
+        list_del(&frame->l_bucket);
+      }
+
       free_frame(frame);
     }
   }
@@ -182,15 +186,25 @@ static int frame_update(char *line, int len, stomp_conninfo_t *cinfo) {
       return -1;
     }
     debug("[frame_update] (%p) succeed in setting frame-name: %s", frame, frame->name);
+
+    // '+1' means new-line character
+    // when a frame is persistent, frame name and header is separated with a new-line character
+    frame->size += (len + 1);
   } else if(GET(frame, STATUS_INPUT_HEADER)) {
     if(IS_NL(line)) {
       if(frame->contentlen > 0) {
         CLR(frame);
         SET(frame, STATUS_INPUT_BODY);
 
+        // when a frame is persistent, header and body is separated with a new-line character
+        frame->size += 1;
+
         return 0;
       } else if(frame->contentlen == 0) {
         frame_finish(frame);
+
+        // when a frame is persistent, each frames are separated with NULL character ('\0')
+        frame->size += 1;
 
         return 1;
       } else {
@@ -208,11 +222,17 @@ static int frame_update(char *line, int len, stomp_conninfo_t *cinfo) {
       }
 
       stomp_setdata(line, len, &frame->h_attrs, &frame->mutex_header);
+
+      // '+1' means new-line character
+      // when a frame is persistent, each headers are separated with a new-line character
+      frame->size += (len + 1);
     }
   } else if(GET(frame, STATUS_INPUT_BODY)) {
     if(len > 0) {
       frame->has_contentlen += len;
       stomp_setdata(line, len, &frame->h_data, &frame->mutex_body);
+
+      frame->size += len;
 
       debug("[frame_update] (%p) succeed in set body [%d/%d]", frame, frame->contentlen, frame->has_contentlen);
     }
@@ -224,6 +244,9 @@ static int frame_update(char *line, int len, stomp_conninfo_t *cinfo) {
     if(frame->contentlen <= frame->has_contentlen) {
       frame_finish(frame);
       debug("[frame_update] (%p) succeed in parsing frame!!", frame);
+
+      // when a frame is persistent, each frames are separated with NULL character ('\0')
+      frame->size += 1;
 
       ret = 1;
     }

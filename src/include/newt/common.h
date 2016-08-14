@@ -12,5 +12,7 @@
 #define CLR(obj) (obj->status = 0)
 
 void gen_random(char *, const int);
+unsigned long get_hash(unsigned char *str);
+void mkdir_recursive(char *);
 
 #endif

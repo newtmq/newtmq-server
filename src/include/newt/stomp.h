@@ -11,7 +11,6 @@
 #include <pthread.h>
 
 #define CONN_ID_LEN 10
-#define LD_MAX (1024)
 
 /* These values specify state of connection */
 #define STATE_INIT (1 << 0)
@@ -24,13 +23,6 @@ typedef struct frame_bucket_t {
   pthread_mutex_t mutex;
   struct list_head h_frame;
 } frame_bucket_t;
-
-/* This describes a Frame attribute */
-typedef struct linedata_t {
-  char data[LD_MAX];
-  struct list_head list;
-  int len;
-} linedata_t;
 
 /* This is alive during connection is active */
 typedef struct stomp_conninfo_t stomp_conninfo_t;
