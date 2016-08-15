@@ -57,4 +57,6 @@ struct frame_t {
 frame_t *alloc_frame();
 void free_frame(frame_t *);
 
+int parse_frame(frame_t *, char *, int, int *);
+
 #endif
