@@ -8,6 +8,7 @@ newt_test_SOURCES = test.c \
                     newtctl/test_worker.c \
                     unit/test_optparse.c \
                     unit/test_config.c \
+                    unit/test_frame.c \
                     unit/test_stomp.c \
                     unit/test_signal.c \
                     unit/test_daemon.c \

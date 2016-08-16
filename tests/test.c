@@ -29,6 +29,7 @@ int main(int argc, char **argv) {
     ADD_TESTS(test_config);
     ADD_TESTS(test_signal);
     ADD_TESTS(test_daemon);
+    ADD_TESTS(test_frame);
     ADD_TESTS(test_stomp);
     ADD_TESTS(test_queue);
     ADD_TESTS(test_transaction);

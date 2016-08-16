@@ -227,10 +227,6 @@ static int frame_update(frame_t *frame, char *line, int len) {
       debug("[frame_update] (%p) succeed in set body [%d/%d]", frame, frame->contentlen, frame->has_contentlen);
     }
 
-    if(IS_BL(line)) {
-      warn("[frame_update] (%p) got blank-line [contentlen:%d/%d]", frame, frame->contentlen, frame->has_contentlen);
-    }
-
     if(frame->contentlen <= frame->has_contentlen) {
       frame_finish(frame);
       debug("[frame_update] (%p) succeed in parsing frame!!", frame);
@@ -304,6 +300,9 @@ int parse_frame(frame_t *frame, char *input, int input_len, int *offset) {
 
     if(GET(frame, STATUS_INPUT_BODY)) {
       next = curr + line_len;
+      if(IS_BL(line)) {
+        next++;
+      }
     } else {
       next = curr + line_len + 1;
     }
