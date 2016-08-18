@@ -1,0 +1,7 @@
+src/include/newt/persistent_worker.h
+src/lib/frame.c
+src/lib/persistent_worker.c
+tests/unit/test_persistent.c
+
+===
+added a processing and test to unpersist STOMP frame from persistent file

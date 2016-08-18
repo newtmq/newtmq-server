@@ -5,9 +5,14 @@
 #include <newt/frame.h>
 #include <newt/config.h>
 
+struct frame_info {
+  frame_t *frame;
+  struct list_head list;
+};
+
 int initialize_persistent_worker(newt_config *);
+int start_persistent_worker();
 int cleanup_persistent_worker();
-int load_from_persistent(char *);
 
 int persistent(const char *, frame_t *);
 int update_index_sent(const char *, frame_t *);

@@ -306,12 +306,11 @@ int parse_frame(frame_t *frame, char *input, int input_len, int *offset) {
     } else {
       next = curr + line_len + 1;
     }
+    *offset = (next + 1) - input;
 
     ret = frame_update(frame, line, line_len);
     if(ret > 0) {
       is_complete = RET_SUCCESS;
-      *offset = (next + 1) - input;
-
       break;
     }
 
