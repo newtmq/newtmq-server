@@ -146,6 +146,9 @@ static void *reply_worker(void *arg) {
 
     if((frame = (frame_t *)dequeue(dgroup->destination)) != NULL) {
       stomp_send_message(cinfo->sock, frame, NULL);
+
+      // record to sent_index for persistent
+      update_index_sent(dgroup->destination, frame);
     }
   }
 
@@ -183,6 +186,9 @@ static void *unicast_worker(void *arg) {
 
     if(frame != NULL) {
       stomp_send_message(cinfo->sock, frame, headers);
+
+      // record to sent_index for persistent
+      update_index_sent(dgroup->destination, frame);
     }
   }
 
@@ -220,6 +226,9 @@ static void *multicast_worker(void *arg) {
           pthread_mutex_unlock(&dgroup->m_client);
         }
       }
+      // record to sent_index for persistent
+      update_index_sent(dgroup->destination, frame);
+
       free_frame(frame);
     }
   }

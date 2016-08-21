@@ -3,7 +3,7 @@
 
 #include <newt/config.h>
 
-int daemon_initialize();
-int daemon_start(newt_config);
+int daemon_initialize(newt_config *);
+int daemon_start(newt_config *);
 
 #endif

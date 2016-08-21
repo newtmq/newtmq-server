@@ -16,7 +16,7 @@
 
 #include <persistent_worker.c>
 
-#define QNAME "/queue/unit-test"
+#define QNAME "unit-test-queue"
 
 static newt_config config;
 
@@ -41,6 +41,7 @@ static void clear_queue_data(char *dirpath) {
 static void check_initialize() {
   char confpath[512];
   struct stat st = {0};
+  pthread_t tid;
 
   assert(getcwd(confpath, sizeof(confpath)) != NULL);
   sprintf(confpath, "%s/%s", confpath, TEST_CONFIG);
@@ -50,7 +51,8 @@ static void check_initialize() {
   clear_queue_data(config.datadir);
 
   CU_ASSERT(initialize_persistent_worker(&config) == RET_SUCCESS);
-  CU_ASSERT(start_persistent_worker() == RET_SUCCESS);
+
+  pthread_create(&tid, NULL, persistent_worker, NULL);
 
   CU_ASSERT_FATAL(stat(config.datadir, &st) == 0);
   CU_ASSERT(S_ISDIR(st.st_mode));
@@ -70,7 +72,7 @@ static void check_persistent() {
   stomp_setdata("abcd",             4, &frame->h_data, NULL);
   frame->size = 38; // 5(SEND\n) + (17 + 10)(headers) + 1(separation) + 5(body)
 
-  CU_ASSERT(persistent(QNAME, frame) == RET_SUCCESS);
+  CU_ASSERT(persist_frame(frame, QNAME) == RET_SUCCESS);
 
   // delay to flush data persistently
   sleep(1);
@@ -111,15 +113,15 @@ static void check_unpersistent() {
   CU_ASSERT(update_index_sent(QNAME, frame) == RET_SUCCESS);
 
   free_frame(frame);
+  sleep(1);
 
-  // waiting that sent index is updated
-  while(unpersist_queue_info(QNAME) > 0L) {
-    pthread_yield();
-  }
+  INIT_LIST_HEAD(&frame_head);
 
   // unpersist again
   CU_ASSERT(unpersist_queue_context(dirpath, &frame_head) == RET_SUCCESS);
   CU_ASSERT_FATAL(list_empty(&frame_head));
+
+  CU_ASSERT(unpersist() == RET_SUCCESS);
 }
 
 static void check_cleanup() {

@@ -27,11 +27,11 @@ int main(int argc, char **argv) {
     exit(1);
   }
 
-  if(daemon_initialize() == RET_ERROR) {
+  if(daemon_initialize(&config) == RET_ERROR) {
     exit(1);
   }
 
-  if(daemon_start(config) == RET_ERROR) {
+  if(daemon_start(&config) == RET_ERROR) {
     exit(1);
   }
 

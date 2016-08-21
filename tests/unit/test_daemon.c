@@ -24,9 +24,9 @@ static void check_daemon(void) {
   init_newt_config(&config);
 
   if((pid = fork()) == 0) {
-    CU_ASSERT(daemon_initialize() == RET_SUCCESS);
+    CU_ASSERT(daemon_initialize(&config) == RET_SUCCESS);
 
-    daemon_start(config);
+    daemon_start(&config);
   } else {
     /* delay to wait for initialization of daemon to complete */
     sleep(1);

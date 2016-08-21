@@ -9,8 +9,8 @@ pid_t start_newtd() {
 
   set_config(&config);
   if((pid = fork()) == 0) {
-    daemon_initialize();
-    daemon_start(config);
+    daemon_initialize(&config);
+    daemon_start(&config);
   }
 
   return pid;

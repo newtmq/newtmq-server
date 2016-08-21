@@ -4,6 +4,7 @@
 #include <newt/stomp.h>
 #include <newt/stomp_sending_worker.h>
 #include <newt/stomp_management_worker.h>
+#include <newt/persistent_worker.h>
 
 #include <pthread.h>
 
@@ -11,6 +12,7 @@ enum ThreadWorkerName {
   CONNECTION_WORKER,
   CTRL_CONNECTION_WORKER,
   STOMP_MANAGEMENT_WORKER,
+  PERSISTENT_WORKER,
   WorkerLength,
 };
 
@@ -19,7 +21,7 @@ typedef struct thread_info {
   void *argument;
 } thread_info_t;
 
-int daemon_initialize() {
+int daemon_initialize(newt_config *config) {
   /* init processing for each protocol manager */
   if(stomp_init() == RET_ERROR) {
     perror("failed to initialize stomp bucket");
@@ -35,20 +37,26 @@ int daemon_initialize() {
     return RET_ERROR;
   }
 
+  if(initialize_persistent_worker(config) == RET_ERROR) {
+    return RET_ERROR;
+  }
+  unpersist(); // get persistent frames and reinstate them
+
   return RET_SUCCESS;
 }
 
-int daemon_start(newt_config config) {
+int daemon_start(newt_config *config) {
   pthread_t worker_ids[WorkerLength];
   thread_info_t workers[] = {
-    {connection_worker, &config},
-    {ctrl_connection_worker, &config},
+    {connection_worker, config},
+    {ctrl_connection_worker, config},
     {stomp_management_worker, NULL},
+    {persistent_worker, NULL},
   };
   int i;
 
-  if(config.loglevel != NULL) {
-    set_logger(config.loglevel);
+  if(config->loglevel != NULL) {
+    set_logger(config->loglevel);
   }
 
   for(i=0; i<WorkerLength; i++) {

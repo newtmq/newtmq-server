@@ -11,10 +11,12 @@ struct frame_info {
 };
 
 int initialize_persistent_worker(newt_config *);
-int start_persistent_worker();
-int cleanup_persistent_worker();
+//int cleanup_persistent_worker();
 
-int persistent(const char *, frame_t *);
+void *persistent_worker(void *);
+
+int unpersist();
+int persist_frame(frame_t *, char *);
 int update_index_sent(const char *, frame_t *);
 
 #endif

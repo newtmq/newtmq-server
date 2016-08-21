@@ -92,6 +92,9 @@ frame_t *handler_stomp_send(frame_t *frame) {
   }
 
   if(attrinfo.tid == NULL) {
+    // set frame to persist
+    persist_frame(frame, attrinfo.qname);
+
     enqueue((void *)frame, attrinfo.qname);
   } else {
     frame->transaction_data = (void *)attrinfo.qname;

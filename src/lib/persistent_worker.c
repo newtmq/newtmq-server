@@ -11,6 +11,7 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
+#include <dirent.h>
 #include <errno.h>
 
 #define FNAME_DATA "data"
@@ -46,7 +47,6 @@ typedef struct queue_info {
 
 // This is make a single object which is 'pm'
 typedef struct persistent_manager {
-  pthread_t worker_id;
   struct list_head h_qinfo;
   pthread_mutex_t m_qinfo;
   char *datadir;
@@ -63,6 +63,27 @@ static queue_info_t *get_qinfo(unsigned long id) {
       ret = qinfo;
     }
   }
+
+  return ret;
+}
+
+static void persist_queue_info(queue_info_t *qinfo) {
+  fseek(qinfo->fp_index_sent, 0, SEEK_SET);
+  fwrite((const void *)&qinfo->index_sent, sizeof(long), 1, qinfo->fp_index_sent);
+  fflush(qinfo->fp_index_sent);
+}
+
+static long unpersist_queue_info(char *dirpath) {
+  char filepath[MAX_PATH_LENGTH];
+  long ret = 0;
+  FILE *fp;
+
+  sprintf(filepath, "%s/%s", dirpath, FNAME_SENT_INDEX);
+  fp = fopen(filepath, "rb");
+  if(fp == NULL || fread((void *)&ret, sizeof(long), 1, fp) == 0 || ferror(fp) > 0) {
+    warn("[unpersist_queue_info] failed to load from file [errno: 0x%x]", errno);
+  }
+  fclose(fp);
 
   return ret;
 }
@@ -100,17 +121,48 @@ static queue_info_t *alloc_qinfo(char *qname) {
       return NULL;
     }
     sprintf(filepath, "%s/%s", dirpath, FNAME_SENT_INDEX);
+
+    // reinstate metadata
+    if(stat(filepath, &st) == 0) {
+      qinfo->index_sent = unpersist_queue_info(dirpath);
+      qinfo->index_head = st.st_size;
+      qinfo->index_persistent = st.st_size;
+    }
+
     qinfo->fp_index_sent = fopen(filepath, "wb");
     if(qinfo->fp_index_sent == NULL) {
       warn("[alloc_qinfo] failed to open metadata file of sent-index (%s) [0x%x]", filepath, errno);
       free(qinfo);
       return NULL;
     }
+    persist_queue_info(qinfo);
 
     INIT_LIST_HEAD(&qinfo->l_pm);
     INIT_LIST_HEAD(&qinfo->h_unpersistent);
 
     pthread_mutex_init(&qinfo->m_unpersistent, NULL);
+  }
+
+  return qinfo;
+}
+
+// This method get queue_info_t object from persistent_manager_t (PM) object.
+// When it fails which means target queue_info_t doens't exist yet, this function allocate it
+// and links to PM object list_head.
+static queue_info_t *create_qinfo(char *qname) {
+  queue_info_t *qinfo;
+
+  qinfo = get_qinfo(get_hash((unsigned char *)qname));
+  if(qinfo == NULL) {
+    qinfo = alloc_qinfo((char *)qname);
+
+    assert(qinfo != NULL);
+
+    pthread_mutex_lock(&pm.m_qinfo);
+    {
+      list_add_tail(&qinfo->l_pm, &pm.h_qinfo);
+    }
+    pthread_mutex_unlock(&pm.m_qinfo);
   }
 
   return qinfo;
@@ -155,22 +207,6 @@ static int add_frame_into_qinfo(queue_info_t *qinfo, frame_t *frame) {
   pthread_mutex_unlock(&qinfo->m_unpersistent);
 
   return RET_SUCCESS;
-}
-
-static long unpersist_queue_info(char *dirpath) {
-  char filepath[MAX_PATH_LENGTH];
-  long ret = -1;
-  FILE *fp;
-
-  sprintf(filepath, "%s/%s", dirpath, FNAME_SENT_INDEX);
-  fp = fopen(filepath, "rb");
-  if(fp == NULL || fread((void *)&ret, sizeof(long), 1, fp) == 0 || ferror(fp) > 0) {
-    warn("[unpersist_queue_info] failed to load from file [errno: 0x%x]", errno);
-    return -1;
-  }
-  fclose(fp);
-
-  return ret;
 }
 
 static int unpersist_queue_context(char *dirpath, struct list_head *head) { // XXX: nocompletion
@@ -229,17 +265,13 @@ static int unpersist_queue_context(char *dirpath, struct list_head *head) { // X
   return RET_SUCCESS;
 }
 
-static void persist_queue_info(queue_info_t *qinfo) {
-  fseek(qinfo->fp_index_sent, 0, SEEK_SET);
-  fwrite((const void *)&qinfo->index_sent, sizeof(long), 1, qinfo->fp_index_sent);
-  fflush(qinfo->fp_index_sent);
-}
-
 static int persist_queue_context(queue_info_t *qinfo) {
-  frame_t *frame;
+  frame_t *frame, *f;
 
   pthread_mutex_lock(&qinfo->m_unpersistent);
-  list_for_each_entry(frame, &qinfo->h_unpersistent, l_persistent) {
+  list_for_each_entry_safe(frame, f, &qinfo->h_unpersistent, l_persistent) {
+    list_del(&frame->l_persistent);
+
     linedata_t *header, *body;
 
     // write out frame name
@@ -272,7 +304,12 @@ static int persist_queue_context(queue_info_t *qinfo) {
   return RET_SUCCESS;
 }
 
-static void *persistent_worker(void *_arg) {
+void *persistent_worker(void *_arg) {
+  // waiting until persistent_manager object is initialized
+  if(! GET((&pm), STATUS_INITIALIZED)) {
+    pthread_yield();
+  }
+
   while(! GET((&pm), STATUS_STOP)) {
     queue_info_t *qinfo;
 
@@ -307,6 +344,13 @@ static void cleanup_persistent_list() {
   pthread_mutex_unlock(&pm.m_qinfo);
 }
 
+static int cleanup_persistent_worker() {
+  stop_persistent_worker();
+  cleanup_persistent_list();
+
+  return RET_SUCCESS;
+}
+
 int initialize_persistent_worker(newt_config *conf) {
   int ret = RET_ERROR;
 
@@ -325,18 +369,7 @@ int initialize_persistent_worker(newt_config *conf) {
       return RET_ERROR;
     }
 
-    ret = RET_SUCCESS;
-  }
-
-  return ret;
-}
-
-int start_persistent_worker() {
-  int ret = RET_ERROR;
-
-  if(GET((&pm), STATUS_INITIALIZED)) {
     set_signal_handler(cleanup_persistent_worker, NULL);
-    pthread_create(&pm.worker_id, NULL, persistent_worker, NULL);
 
     ret = RET_SUCCESS;
   }
@@ -344,30 +377,71 @@ int start_persistent_worker() {
   return ret;
 }
 
-int cleanup_persistent_worker() {
-  stop_persistent_worker();
-  cleanup_persistent_list();
+int unpersist() {
+  char dirpath[MAX_PATH_LENGTH] = {0};
+  char datapath[MAX_PATH_LENGTH] = {0};
+  struct dirent *dir;
+  DIR *d;
+
+  if(! GET((&pm), STATUS_INITIALIZED)) {
+    return RET_ERROR;
+  }
+
+  d = opendir(pm.datadir);
+  if(d) while((dir = readdir(d)) != NULL) {
+    struct list_head frame_head;
+    queue_info_t *qinfo;
+    struct stat st = {0};
+
+    if(dir->d_name[0] == '.') {
+      continue;
+    }
+
+    INIT_LIST_HEAD(&frame_head);
+
+    sprintf(dirpath, "%s/%s", pm.datadir, dir->d_name);
+
+    // create queue_info object
+    qinfo = create_qinfo(dir->d_name);
+    qinfo->index_sent = unpersist_queue_info(dirpath);
+
+    // get metadata of target queue and initialize the object of queue_info_t
+    sprintf(datapath, "%s/%s", dirpath, FNAME_DATA);
+    if(stat(datapath, &st) == 0 && S_ISDIR(st.st_mode)) {
+      warn("[unpersist] failed to get stat from '%s'", datapath);
+      continue;
+    }
+    qinfo->index_head = qinfo->index_persistent= st.st_size;
+
+    // get frames and reinstate it
+    if(unpersist_queue_context(dirpath, &frame_head) == RET_ERROR) {
+      warn("[unpersist] failed to unpersist frames in '%s'", dirpath);
+      free_qinfo(qinfo);
+      continue;
+    }
+
+    if(! list_empty(&frame_head)) {
+      struct frame_info *finfo, *f;
+
+      list_for_each_entry_safe(finfo, f, &frame_head, list) {
+        // because directory name shows the queue name
+        enqueue((void *)finfo->frame, dir->d_name);
+
+        // cleanup processing
+        free_frame_info(finfo);
+      }
+    }
+  }
 
   return RET_SUCCESS;
 }
 
-int persistent(const char *qname, frame_t *frame) {
+int persist_frame(frame_t *frame, char *qname) {
   queue_info_t *qinfo;
 
   assert(frame != NULL);
 
-  qinfo = get_qinfo(get_hash((unsigned char *)qname));
-  if(qinfo == NULL) {
-    qinfo = alloc_qinfo((char *)qname);
-
-    assert(qinfo != NULL);
-    
-    pthread_mutex_lock(&pm.m_qinfo);
-    {
-      list_add_tail(&qinfo->l_pm, &pm.h_qinfo);
-    }
-    pthread_mutex_unlock(&pm.m_qinfo);
-  }
+  qinfo = create_qinfo(qname);
 
   add_frame_into_qinfo(qinfo, frame);
   qinfo->index_head += frame->size;
