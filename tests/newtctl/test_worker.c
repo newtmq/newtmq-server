@@ -10,6 +10,7 @@
 
 static void test_ctrl_handler(void) {
   newtctl_t obj = {NEWTCTL_LIST_QUEUES};
+  newtctl_t recv_obj;
   int sock;
   int datalen = 0;
   char *encoded_data, *recvbuf;
@@ -31,8 +32,9 @@ static void test_ctrl_handler(void) {
   int len = recv(sock, recvbuf, BUFSIZE, 0);
   CU_ASSERT(len > 0);
 
-  CU_ASSERT(unpack(recvbuf, len, &obj) == RET_SUCCESS);
-  CU_ASSERT(obj.status == RET_SUCCESS);
+  CU_ASSERT(unpack(recvbuf, len, &recv_obj) == RET_SUCCESS);
+  CU_ASSERT(obj.command == recv_obj.command);
+  CU_ASSERT(recv_obj.status == RET_SUCCESS);
 
   free(encoded_data);
   free(recvbuf);
