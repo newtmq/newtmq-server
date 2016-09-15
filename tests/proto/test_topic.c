@@ -26,16 +26,16 @@ static void *subscriber(void *data) {
   sock = connect_server();
 
   for(i=0; msg[i]!=NULL; i++) {
-    mysend(sock, msg[i], strlen(msg[i]), 0);
+    test_send(sock, msg[i], strlen(msg[i]), 0);
   }
-  mysend(sock, "\0", 1, 0);
+  test_send(sock, "\0", 1, 0);
 
   int len;
   int retry_count = RETRY_MAX;
   do {
     len = recv(sock, buf, sizeof(buf), 0);
     retry_count--;
-  } while(retry_count > 0 && len < 0);
+  } while(retry_count > 0 && len <= 0);
 
   CU_ASSERT(len > 0);
   CU_ASSERT(strncmp(buf, "MESSAGE", 7) == 0);

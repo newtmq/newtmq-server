@@ -48,11 +48,11 @@ int stomp_connect(int sock) {
 
   int i;
   for(i=0; msg[i] != NULL; i++) {
-    if(mysend(sock, msg[i], strlen(msg[i]), 0) <= 0) {
+    if(test_send(sock, msg[i], strlen(msg[i]), 0) <= 0) {
       return RET_ERROR;
     }
   }
-  mysend(sock, "\0", 1, 0);
+  test_send(sock, "\0", 1, 0);
 
   int ret = RET_ERROR;
   while(recv(sock, buf, sizeof(buf), 0) > 0) {
@@ -69,26 +69,26 @@ int stomp_send(int sock, char *data, int len, char **headers, int header_len) {
   int i, hdrlen;
 
   // send command
-  mysend(sock, "SEND\n", 5, 0);
+  test_send(sock, "SEND\n", 5, 0);
 
   // send headers
   for(i=0; i<header_len; i++) {
-    mysend(sock, headers[i], strlen(headers[i]), 0);
+    test_send(sock, headers[i], strlen(headers[i]), 0);
   }
 
   hdrlen = sprintf(hdr_buf, "content-length:%d\n", len);
   hdr_buf[hdrlen] = '\0';
-  mysend(sock, hdr_buf, strlen(hdr_buf), 0);
+  test_send(sock, hdr_buf, strlen(hdr_buf), 0);
 
-  mysend(sock, "\n", 1, 0);
+  test_send(sock, "\n", 1, 0);
 
   // send data
   if(data != NULL) {
-    if(mysend(sock, data, len, 0) <= 0) {
+    if(test_send(sock, data, len, 0) <= 0) {
       return RET_ERROR;
     }
   }
-  mysend(sock, "\0", 1, 0);
+  test_send(sock, "\0", 1, 0);
 
   return RET_SUCCESS;
 }

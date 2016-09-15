@@ -4,6 +4,9 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <stdio.h>
+#include <errno.h>
+
+#include <newt/logger.h>
 
 int open_connection(int port) {
   int sd;
@@ -29,13 +32,16 @@ int open_connection(int port) {
   return sd;
 }
 
-int mysend(int sock, char *buf, int len, int flag) {
+int test_send(int sock, char *buf, int len, int flag) {
   int ret;
 
   ret = send(sock, buf, len, flag);
   if(ret < 0) {
-    printf("[mysend] (ret is '%d') %s [%d]\n", (int)ret, buf, len);
+    printf("[test_send] (%d) %s [%d]\n", errno, buf, len);
   }
 
   return ret;
+}
+
+int test_recv() {
 }

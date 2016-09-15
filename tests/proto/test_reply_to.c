@@ -24,9 +24,9 @@ static void *subscriber(void *data) {
 
   int i;
   for(i=0; msg[i] != NULL; i++) {
-    mysend(sock, msg[i], strlen(msg[i]), 0);
+    test_send(sock, msg[i], strlen(msg[i]), 0);
   }
-  mysend(sock, "\0", 1, 0);
+  test_send(sock, "\0", 1, 0);
 
   // receive MESSAGE frame
   char *reply_dest = NULL;
