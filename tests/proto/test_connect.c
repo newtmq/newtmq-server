@@ -32,7 +32,7 @@ static void test_connect(void) {
   }
   CU_ASSERT(send(sock, "\0", 1, 0) > 0);
 
-  len = recv(sock, buf, sizeof(buf), 0);
+  len = test_recv(sock, buf, sizeof(buf));
   CU_ASSERT(len > 0);
 
   CU_ASSERT(strncmp(buf, "CONNECTED\n", 10) == 0);

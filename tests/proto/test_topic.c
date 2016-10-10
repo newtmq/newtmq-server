@@ -1,6 +1,7 @@
 #include <test.h>
 
 #include <string.h>
+#include <unistd.h>
 #include <pthread.h>
 
 #include <newt/common.h>
@@ -26,14 +27,16 @@ static void *subscriber(void *data) {
   sock = connect_server();
 
   for(i=0; msg[i]!=NULL; i++) {
-    test_send(sock, msg[i], strlen(msg[i]), 0);
+    test_send(sock, msg[i], strlen(msg[i]));
   }
-  test_send(sock, "\0", 1, 0);
+  test_send(sock, "\0", 1);
+
+  sleep(0.5);
 
   int len;
   int retry_count = RETRY_MAX;
   do {
-    len = recv(sock, buf, sizeof(buf), 0);
+    len = test_recv(sock, buf, sizeof(buf));
     retry_count--;
   } while(retry_count > 0 && len <= 0);
 

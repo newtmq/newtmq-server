@@ -4,6 +4,7 @@
 #define RECV_TIMEOUT 3
 
 int open_connection(int);
-int test_send(int, char *, int, int);
+int test_send(int, char *, int);
+int test_recv(int, char *, int);
 
 #endif

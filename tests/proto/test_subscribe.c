@@ -40,7 +40,7 @@ static void test_subscribe(void) {
   }
   send(sock, "\0", 1, 0);
 
-  int len = recv(sock, buf, sizeof(buf), 0);
+  int len = test_recv(sock, buf, sizeof(buf));
   CU_ASSERT(len > 0);
   CU_ASSERT(strncmp(buf, "MESSAGE\n", 8) == 0);
 

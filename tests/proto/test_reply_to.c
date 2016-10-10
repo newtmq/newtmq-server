@@ -24,13 +24,13 @@ static void *subscriber(void *data) {
 
   int i;
   for(i=0; msg[i] != NULL; i++) {
-    test_send(sock, msg[i], strlen(msg[i]), 0);
+    test_send(sock, msg[i], strlen(msg[i]));
   }
-  test_send(sock, "\0", 1, 0);
+  test_send(sock, "\0", 1);
 
   // receive MESSAGE frame
   char *reply_dest = NULL;
-  while(recv(sock, buf, sizeof(buf), 0) > 0) {
+  while(test_recv(sock, buf, sizeof(buf)) > 0) {
     char *line;
     line = strtok(buf, "\n");
     do{
@@ -47,7 +47,7 @@ static void *subscriber(void *data) {
     char *reply_headers[] = {
       reply_dest,
     };
-    stomp_send(sock, "fuga\n", 5, reply_headers, 1);
+    stomp_send(sock, "puyo\n", 5, reply_headers, 1);
 
     free(reply_dest);
   }
@@ -79,7 +79,7 @@ static void test_reply_to(void) {
   pthread_join(thread_id, NULL);
 
   // receive replied MESSAGE frame
-  CU_ASSERT(recv(sock, buf, sizeof(buf), 0) > 0);
+  CU_ASSERT(test_recv(sock, buf, sizeof(buf)) > 0);
   CU_ASSERT(strncmp(buf, "MESSAGE\n", 8) == 0);
 
   close(sock);

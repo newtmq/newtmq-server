@@ -32,16 +32,28 @@ int open_connection(int port) {
   return sd;
 }
 
-int test_send(int sock, char *buf, int len, int flag) {
+int test_send(int sock, char *buf, int len) {
   int ret;
 
-  ret = send(sock, buf, len, flag);
+  ret = send(sock, buf, len, 0);
   if(ret < 0) {
-    printf("[test_send] (%d) %s [%d]\n", errno, buf, len);
+    printf("[test_send/ERROR] (%d) %s [%d]\n", errno, buf, len);
   }
 
   return ret;
 }
 
-int test_recv() {
+int test_recv(int sock, char *buf, int len) {
+  char received_data;
+  int index = 0;
+
+  while(recv(sock, &received_data, 1, 0) > 0 && index < len) {
+    buf[index++] = received_data;
+
+    if(received_data == '\0') {
+      break;
+    }
+  }
+
+  return index;
 }
